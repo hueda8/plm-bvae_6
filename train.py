@@ -529,7 +529,7 @@ def run_epoch(split: str,
         if rt['use_precomputed']:
             batch_x, batch_y = batch
             # 検証
-            print("batch_x.shape[1]", batch_x, flush=True)
+            print("batch_x.shape[1]", batch_x.shape, flush=True)
             print("np.sum(batch_y[0] != 0) - 1", np.sum(batch_y[0] != 0) - 1, flush=True)
             x = torch.from_numpy(batch_x).float().to(device)
             select_indices_batch = None
