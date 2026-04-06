@@ -119,7 +119,6 @@ def _stable_json_dumps(obj) -> str:
 
 def _build_trim_cache_key(hparams, mode: str) -> str:
     key_obj = {
-        "mode": mode,
         "data_path": hparams.get("data_path", ""),
         "embeddings_path": hparams.get("embeddings_path", ""),
         "select_indices": hparams.get("select_indices", None),
@@ -170,7 +169,7 @@ def prepare_trimmed_cache(hparams, mode: str, force_rebuild: bool = False) -> st
         raise FileNotFoundError(f"Embeddings dir not found: {src_emb_dir}")
 
     cache_root = hparams.get("trimmed_cache_root", os.path.join(hparams["embeddings_path"], "trim_cache"))
-    cache_key = _build_trim_cache_key(hparams, mode)
+    cache_key = _build_trim_cache_key(hparams)
     dst_emb_dir = os.path.join(cache_root, cache_key, mode)
     done_flag = os.path.join(dst_emb_dir, ".done.json")
 
