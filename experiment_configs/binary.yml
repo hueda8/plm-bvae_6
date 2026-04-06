@@ -46,7 +46,7 @@ max_output_length: 150
 buffer_size: 500
 label_smoothing: 0.00
 seed: 42
-early_conf: null
+early_stopping: null
 lr_schedule: null
 
 # ─── AMP / Precision ─────────────────────────────────────────────────────────
