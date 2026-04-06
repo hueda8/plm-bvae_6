@@ -695,7 +695,7 @@ def main():
             dev_cache_dir = prepare_trimmed_cache(hparams, mode="dev", force_rebuild=False)
 
             # featurizer.batch_generator が embeddings_path/{mode} を読む仕様なので、
-            # ルートを trim_cache/<cache_key> に差し替える
+            # ルートを trim_cache/<cache_key> に差し替える (train/dev)
             hparams["embeddings_path"] = os.path.dirname(train_cache_dir)
             print(f"[TRIM CACHE][AUTO] enabled because select_indices/sidecar is used.")
             print(f"[TRIM CACHE][AUTO] embeddings_path -> {hparams['embeddings_path']}")
