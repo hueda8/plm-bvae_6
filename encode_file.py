@@ -4,7 +4,7 @@ from tqdm import tqdm
 import torch
 import argparse
 
-from featurizer import batch_generator
+from featurizer import batch_generator, prepare_trimmed_cache
 from model import SeqModel
 from load_hparams import loader_func, PrintHparamsInfo
 
@@ -20,6 +20,16 @@ if __name__ == "__main__":
 
     # 強制的に precomputed を使用
     hparams['input_is_precomputed'] = True
+
+    static_idx = hparams.get("select_indices", None)
+    use_static = (static_idx is not None and len(static_idx) > 0)
+    use_sidecar = bool(hparams.get("allow_sidecar_indices", False))
+    need_trim_cache = use_static or use_sidecar
+
+    if need_trim_cache:
+        test_cache_dir = prepare_trimmed_cache(hparams, mode="test", force_rebuild=False)
+        hparams["embeddings_path"] = os.path.dirname(test_cache_dir)
+        print(f"[TRIM CACHE][AUTO][ENCODE] embeddings_path -> {hparams['embeddings_path']}")
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
