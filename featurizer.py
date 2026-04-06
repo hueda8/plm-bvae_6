@@ -1,5 +1,8 @@
 import numpy as np
 import os
+import hashlib
+import json
+import shutil
 from typing import Dict, List, Tuple, Iterable, Sequence, Union, Any, Optional
 
 # =========================
@@ -110,6 +113,122 @@ def pad_emb_sequences(arr: List[np.ndarray], emb_dim: int, ml: int = None) -> np
         if L > 0:
             out[i, :L, :] = x
     return out
+
+def _stable_json_dumps(obj) -> str:
+    return json.dumps(obj, sort_keys=True, ensure_ascii=False)
+
+def _build_trim_cache_key(hparams, mode: str) -> str:
+    key_obj = {
+        "mode": mode,
+        "data_path": hparams.get("data_path", ""),
+        "embeddings_path": hparams.get("embeddings_path", ""),
+        "select_indices": hparams.get("select_indices", None),
+        "allow_sidecar_indices": bool(hparams.get("allow_sidecar_indices", False)),
+    }
+    s = _stable_json_dumps(key_obj).encode("utf-8")
+    return hashlib.sha1(s).hexdigest()[:16]
+
+def _apply_index_selection_precomputed(
+    emb: np.ndarray,
+    labels: List[int],
+    L: int,
+    static_idx,
+    allow_sidecar_idx: bool,
+    idx_dir: str,
+    sample_i: int,
+):
+    # 優先順位: static_idx > sidecar
+    if static_idx is not None and len(static_idx) > 0:
+        sel = np.array(static_idx, dtype=np.int64) - 1
+        sel = sel[(sel >= 0) & (sel < L)]
+        if sel.size > 0:
+            emb = emb[sel, :]
+            labels = [labels[j] for j in sel.tolist()]
+    elif allow_sidecar_idx and os.path.isdir(idx_dir):
+        idx_path = os.path.join(idx_dir, f"{sample_i}.idx.npy")
+        if os.path.isfile(idx_path):
+            sel = np.load(idx_path).astype(np.int64).reshape(-1) - 1
+            sel = sel[(sel >= 0) & (sel < L)]
+            if sel.size > 0:
+                emb = emb[sel, :]
+                labels = [labels[j] for j in sel.tolist()]
+    return emb, labels
+
+def prepare_trimmed_cache(hparams, mode: str, force_rebuild: bool = False) -> str:
+    """
+    precomputed埋め込みを select_indices / sidecar に従って1回だけ切り詰め、
+    キャッシュディレクトリへ保存する。
+    戻り値: cache emb dir (例: .../trim_cache/<key>/<mode>)
+    """
+    assert mode in ["train", "dev", "test"]
+
+    data_file = os.path.join(hparams["data_path"], f"{mode}.txt")
+    src_emb_dir = os.path.join(hparams["embeddings_path"], mode)
+    if not os.path.isfile(data_file):
+        raise FileNotFoundError(f"Data file not found: {data_file}")
+    if not os.path.isdir(src_emb_dir):
+        raise FileNotFoundError(f"Embeddings dir not found: {src_emb_dir}")
+
+    cache_root = hparams.get("trimmed_cache_root", os.path.join(hparams["embeddings_path"], "trim_cache"))
+    cache_key = _build_trim_cache_key(hparams, mode)
+    dst_emb_dir = os.path.join(cache_root, cache_key, mode)
+    done_flag = os.path.join(dst_emb_dir, ".done.json")
+
+    if (not force_rebuild) and os.path.isfile(done_flag):
+        return dst_emb_dir
+
+    os.makedirs(dst_emb_dir, exist_ok=True)
+
+    encoder = Encoder(hparams)
+    static_idx = hparams.get("select_indices", None)
+    allow_sidecar_idx = bool(hparams.get("allow_sidecar_indices", False))
+    idx_dir = os.path.join(src_emb_dir, "indices")
+
+    n_lines = 0
+    for i, line in enumerate(open(data_file)):
+        n_lines += 1
+        labels = encoder.encode(line.strip())
+
+        src_path = os.path.join(src_emb_dir, f"{i}.npy")
+        if not os.path.isfile(src_path):
+            raise FileNotFoundError(f"Missing source embedding: {src_path}")
+
+        emb = np.load(src_path).astype(np.float32)
+        L = min(len(labels), emb.shape[0])
+        labels = labels[:L]
+        emb = emb[:L, :]
+
+        emb_trim, labels_trim = _apply_index_selection_precomputed(
+            emb=emb,
+            labels=labels,
+            L=L,
+            static_idx=static_idx,
+            allow_sidecar_idx=allow_sidecar_idx,
+            idx_dir=idx_dir,
+            sample_i=i,
+        )
+
+        # 重要: 学習時は labels も同じ規則で切るので、整合保証のため emb だけ保存
+        out_path = os.path.join(dst_emb_dir, f"{i}.npy")
+        np.save(out_path, emb_trim.astype(np.float32), allow_pickle=False)
+
+    with open(done_flag, "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "mode": mode,
+                "num_samples": n_lines,
+                "cache_key": cache_key,
+                "source_emb_dir": src_emb_dir,
+                "select_indices": static_idx,
+                "allow_sidecar_indices": allow_sidecar_idx,
+            },
+            f,
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+
+    return dst_emb_dir
 
 def gen_batch(buf: Dict[int, Tuple[np.ndarray, List[int]]], hparams, keep_order: bool):
     id0 = min(list(buf))
