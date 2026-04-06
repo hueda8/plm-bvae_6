@@ -117,7 +117,7 @@ def pad_emb_sequences(arr: List[np.ndarray], emb_dim: int, ml: int = None) -> np
 def _stable_json_dumps(obj) -> str:
     return json.dumps(obj, sort_keys=True, ensure_ascii=False)
 
-def _build_trim_cache_key(hparams, mode: str) -> str:
+def _build_trim_cache_key(hparams) -> str:
     key_obj = {
         "data_path": hparams.get("data_path", ""),
         "embeddings_path": hparams.get("embeddings_path", ""),
