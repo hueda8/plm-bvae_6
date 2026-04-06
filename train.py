@@ -13,7 +13,7 @@ from torch.nn.utils import clip_grad_norm_
 from tqdm import tqdm
 import random  # ADD: for Python RNG
 
-from featurizer import batch_generator, batch_generator_text
+from featurizer import batch_generator, batch_generator_text, prepare_trimmed_cache
 from model import SeqModel
 from load_hparams import loader_func, PrintHparamsInfo
 import argparse
@@ -684,6 +684,24 @@ def main():
     check_sidecar_indices_consistency(hparams, modes=("train", "dev", "test"))
 
     if rt['use_precomputed']:
+        static_idx = hparams.get("select_indices", None)
+        use_static = (static_idx is not None and len(static_idx) > 0)
+        use_sidecar = bool(hparams.get("allow_sidecar_indices", False))
+        need_trim_cache = use_static or use_sidecar
+
+        if need_trim_cache:
+            # force_rebuild は原則 false 固定（「1回作って再利用」）
+            train_cache_dir = prepare_trimmed_cache(hparams, mode="train", force_rebuild=False)
+            dev_cache_dir = prepare_trimmed_cache(hparams, mode="dev", force_rebuild=False)
+
+            # featurizer.batch_generator が embeddings_path/{mode} を読む仕様なので、
+            # ルートを trim_cache/<cache_key> に差し替える
+            hparams["embeddings_path"] = os.path.dirname(train_cache_dir)
+            print(f"[TRIM CACHE][AUTO] enabled because select_indices/sidecar is used.")
+            print(f"[TRIM CACHE][AUTO] embeddings_path -> {hparams['embeddings_path']}")
+        else:
+            print("[TRIM CACHE][AUTO] disabled (no select_indices and allow_sidecar_indices=false).")
+
         ensure_embeddings(hparams, modes=("train", "dev"))
 
         if "embedding_dim" not in hparams or hparams["embedding_dim"] is None:
