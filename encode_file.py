@@ -20,6 +20,7 @@ if __name__ == "__main__":
 
     # 強制的に precomputed を使用
     hparams['input_is_precomputed'] = True
+    hparams["selection_already_applied"] = True
 
     static_idx = hparams.get("select_indices", None)
     use_static = (static_idx is not None and len(static_idx) > 0)
