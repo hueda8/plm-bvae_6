@@ -279,7 +279,8 @@ def batch_generator(hparams, mode: str, start_from: int = 0, keep_order: bool = 
             raise FileNotFoundError(f"Missing embedding file for line {i}: {emb_path}")
         emb = np.load(emb_path).astype(np.float32)
         L = min(len(labels), emb.shape[0])
-        labels = labels[:L]; emb = emb[:L, :]
+        labels = labels[:L]
+        emb = emb[:L, :]
 
         # インデックス選択ロジック（優先順位: static_idx > sidecar indices/{i}.idx.npy）
         selection_already_applied = bool(hparams.get("selection_already_applied", False))
