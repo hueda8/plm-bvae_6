@@ -340,6 +340,90 @@ def batch_generator(hparams, mode: str, start_from: int = 0, keep_order: bool = 
         yield gen_batch(buf, hparams, keep_order)
 
 # ============ Text generator for on-the-fly pLM ============
+def _build_text_sel_cache_key(hparams, mode: str) -> str:
+    key_obj = {
+        "mode": mode,
+        "data_path": hparams.get("data_path", ""),
+        "embeddings_path": hparams.get("embeddings_path", ""),
+        "select_indices": hparams.get("select_indices", None),
+        "allow_sidecar_indices": bool(hparams.get("allow_sidecar_indices", False)),
+    }
+    s = _stable_json_dumps(key_obj).encode("utf-8")
+    return hashlib.sha1(s).hexdigest()[:16]
+
+def _prepare_text_selection_cache(hparams, mode: str) -> Dict[int, Optional[List[int]]]:
+    """
+    on-the-fly 用: 各サンプルの 0-based selection index (sel0) を事前計算して JSON にキャッシュ。
+    戻り値: {sample_i: sel0_or_None}
+    """
+    assert mode in ["train", "dev", "test"]
+
+    data_file = os.path.join(hparams["data_path"], f"{mode}.txt")
+    if not os.path.isfile(data_file):
+        raise FileNotFoundError(f"Data file not found: {data_file}")
+
+    cache_root = hparams.get(
+        "text_selection_cache_root",
+        os.path.join(hparams.get("embeddings_path", "."), "text_sel_cache")
+    )
+    cache_key = _build_text_sel_cache_key(hparams, mode)
+    cache_dir = os.path.join(cache_root, cache_key, mode)
+    os.makedirs(cache_dir, exist_ok=True)
+
+    cache_path = os.path.join(cache_dir, "sel_indices.json")
+    done_flag = os.path.join(cache_dir, ".done.json")
+    force_rebuild = bool(hparams.get("text_selection_cache_force_rebuild", False))
+
+    if (not force_rebuild) and os.path.isfile(cache_path) and os.path.isfile(done_flag):
+        with open(cache_path, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+        return {int(k): (v if v is None else list(map(int, v))) for k, v in raw.items()}
+
+    encoder = Encoder(hparams)
+    static_idx = hparams.get("select_indices", None)
+    allow_sidecar_idx = bool(hparams.get("allow_sidecar_indices", False))
+    emb_dir = os.path.join(hparams.get("embeddings_path", ""), mode)
+    idx_dir = os.path.join(emb_dir, "indices")
+
+    out: Dict[int, Optional[List[int]]] = {}
+    for i, line in enumerate(open(data_file)):
+        labels = encoder.encode(line.strip())
+        L = len(labels)
+
+        sel0: Optional[List[int]] = None
+        if static_idx is not None and len(static_idx) > 0:
+            sel = np.array(static_idx, dtype=np.int64) - 1
+            sel = sel[(sel >= 0) & (sel < L)]
+            sel0 = sel.tolist()
+        elif allow_sidecar_idx and os.path.isdir(idx_dir):
+            idx_path = os.path.join(idx_dir, f"{i}.idx.npy")
+            if os.path.isfile(idx_path):
+                sel = np.load(idx_path).astype(np.int64).reshape(-1) - 1
+                sel = sel[(sel >= 0) & (sel < L)]
+                sel0 = sel.tolist()
+
+        out[i] = sel0
+
+    with open(cache_path, "w", encoding="utf-8") as f:
+        json.dump(out, f, ensure_ascii=False, sort_keys=True)
+
+    with open(done_flag, "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "mode": mode,
+                "num_samples": len(out),
+                "cache_key": cache_key,
+                "allow_sidecar_indices": allow_sidecar_idx,
+                "select_indices": static_idx,
+            },
+            f,
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+
+    return out
+
 def _gen_text_batch(buf: Dict[int, Tuple[str, List[int], List[int]]], hparams, keep_order: bool):
     """
     buf の要素は (seq, labels, sel_indices0) を保持。
@@ -387,6 +471,11 @@ def batch_generator_text(hparams, mode: str, start_from: int = 0, keep_order: bo
     static_idx = hparams.get('select_indices', None)  # 1-based indices
     allow_sidecar_idx = bool(hparams.get('allow_sidecar_indices', False))
 
+    use_sel_cache = bool(hparams.get("use_text_selection_cache", True))
+    sel_cache: Optional[Dict[int, Optional[List[int]]]] = None
+    if use_sel_cache:
+        sel_cache = _prepare_text_selection_cache(hparams, mode)
+
     buf: Dict[int, Tuple[str, List[int], Optional[List[int]]]] = {}
     for i, line in enumerate(open(filename)):
         if i < start_from: continue
@@ -395,17 +484,20 @@ def batch_generator_text(hparams, mode: str, start_from: int = 0, keep_order: bo
         L = len(labels)
 
         # 優先順位: static_idx（1-based） > sidecar（1-based → 0-based）
-        sel0: Optional[List[int]] = None
-        if static_idx is not None and len(static_idx) > 0:
-            sel = np.array(static_idx, dtype=np.int64) - 1  # 0-based
-            sel = sel[(sel >= 0) & (sel < L)]
-            sel0 = sel.tolist()
-        elif allow_sidecar_idx and os.path.isdir(idx_dir):
-            idx_path = os.path.join(idx_dir, f"{i}.idx.npy")
-            if os.path.isfile(idx_path):
-                sel = np.load(idx_path).astype(np.int64).reshape(-1) - 1
+        if sel_cache is not None:
+            sel0 = sel_cache.get(i, None)
+        else:
+            sel0: Optional[List[int]] = None
+            if static_idx is not None and len(static_idx) > 0:
+                sel = np.array(static_idx, dtype=np.int64) - 1  # 0-based
                 sel = sel[(sel >= 0) & (sel < L)]
                 sel0 = sel.tolist()
+            elif allow_sidecar_idx and os.path.isdir(idx_dir):
+                idx_path = os.path.join(idx_dir, f"{i}.idx.npy")
+                if os.path.isfile(idx_path):
+                    sel = np.load(idx_path).astype(np.int64).reshape(-1) - 1
+                    sel = sel[(sel >= 0) & (sel < L)]
+                    sel0 = sel.tolist()
 
         buf[i] = (seq, labels, sel0)
 
