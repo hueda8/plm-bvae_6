@@ -696,11 +696,13 @@ def main():
             # force_rebuild は原則 false 固定（「1回作って再利用」）
             train_cache_dir = prepare_trimmed_cache(hparams, mode="train", force_rebuild=False)
             dev_cache_dir = prepare_trimmed_cache(hparams, mode="dev", force_rebuild=False)
+            orig_embeddings_path = hparams["embeddings_path"]
 
             # featurizer.batch_generator が embeddings_path/{mode} を読む仕様なので、
             # ルートを trim_cache/<cache_key> に差し替える (train/dev)
             hparams["embeddings_path"] = os.path.dirname(train_cache_dir)
             hparams["selection_already_applied"] = True
+            hparams["source_embeddings_path_for_indices"] = orig_embeddings_path
             print(f"[TRIM CACHE][AUTO] enabled because select_indices/sidecar is used.")
             print(f"[TRIM CACHE][AUTO] embeddings_path -> {hparams['embeddings_path']}")
         else:
