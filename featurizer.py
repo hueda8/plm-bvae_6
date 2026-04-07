@@ -268,8 +268,17 @@ def batch_generator(hparams, mode: str, start_from: int = 0, keep_order: bool = 
     # 追加: 固定またはサンプルごとのインデックス選択設定
     static_idx = hparams.get('select_indices', None)  # ハイパーパラメータ設定の例: "select_indices": [1, 3, 5]（1以上を指定）
     allow_sidecar_idx = bool(hparams.get('allow_sidecar_indices', False))  # i.idx.npy を許可
-    idx_dir = os.path.join(emb_dir, "indices")
 
+    # sidecar index の参照先を決定
+    
+    idx_dir = os.path.join(emb_dir, "indices")
+    if bool(hparams.get("selection_already_applied", False)):
+        # trim cache 使用時は、labels選択のため元埋め込み側 indices を参照
+        src_root = hparams.get("source_embeddings_path_for_indices", hparams["embeddings_path"])
+        idx_dir = os.path.join(src_root, mode, "indices")
+    else:
+        idx_dir = os.path.join(emb_dir, "indices")
+        
     buf: Dict[int, Tuple[np.ndarray, List[int]]] = {}
     for i, line in enumerate(open(filename)):
         if i < start_from: continue
