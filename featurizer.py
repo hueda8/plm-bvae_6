@@ -340,9 +340,8 @@ def batch_generator(hparams, mode: str, start_from: int = 0, keep_order: bool = 
         yield gen_batch(buf, hparams, keep_order)
 
 # ============ Text generator for on-the-fly pLM ============
-def _build_text_sel_cache_key(hparams, mode: str) -> str:
+def _build_text_sel_cache_key(hparams) -> str:
     key_obj = {
-        "mode": mode,
         "data_path": hparams.get("data_path", ""),
         "embeddings_path": hparams.get("embeddings_path", ""),
         "select_indices": hparams.get("select_indices", None),
@@ -366,7 +365,7 @@ def _prepare_text_selection_cache(hparams, mode: str) -> Dict[int, Optional[List
         "text_selection_cache_root",
         os.path.join(hparams.get("embeddings_path", "."), "text_sel_cache")
     )
-    cache_key = _build_text_sel_cache_key(hparams, mode)
+    cache_key = _build_text_sel_cache_key(hparams)
     cache_dir = os.path.join(cache_root, cache_key, mode)
     os.makedirs(cache_dir, exist_ok=True)
 
