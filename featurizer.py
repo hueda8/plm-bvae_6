@@ -282,23 +282,49 @@ def batch_generator(hparams, mode: str, start_from: int = 0, keep_order: bool = 
     buf: Dict[int, Tuple[np.ndarray, List[int]]] = {}
     for i, line in enumerate(open(filename)):
         if i < start_from: continue
-        labels = encoder.encode(line.strip())
+        labels_full = encoder.encode(line.strip())
         emb_path = os.path.join(emb_dir, f"{i}.npy")
         if not os.path.isfile(emb_path):
             raise FileNotFoundError(f"Missing embedding file for line {i}: {emb_path}")
         emb = np.load(emb_path).astype(np.float32)
-        L = min(len(labels), emb.shape[0])
-        labels = labels[:L]
-        emb = emb[:L, :]
 
-        # インデックス選択ロジック（優先順位: static_idx > sidecar indices/{i}.idx.npy）
         selection_already_applied = bool(hparams.get("selection_already_applied", False))
+
+        if selection_already_applied:
+            # emb は既に trim 済み。labels だけ full-length 基準で sidecar/static 選択する
+            labels = labels_full
+            L_full = len(labels)
+            # インデックス選択ロジック（優先順位: static_idx > sidecar indices/{i}.idx.npy）
+            if static_idx is not None and len(static_idx) > 0:
+                sel = np.array(static_idx, dtype=np.int64) - 1
+                sel = sel[(sel >= 0) & (sel < L_full)]
+                if sel.size > 0:
+                    labels = [labels[j] for j in sel.tolist()]
+            elif allow_sidecar_idx and os.path.isdir(idx_dir):
+                idx_path = os.path.join(idx_dir, f"{i}.idx.npy")
+                if os.path.isfile(idx_path):
+                    sel = np.load(idx_path).astype(np.int64).reshape(-1) - 1
+                    sel = sel[(sel >= 0) & (sel < L_full)]
+                    if sel.size > 0:
+                        labels = [labels[j] for j in sel.tolist()]
+
+            # 最後に emb 長へ合わせる
+            L2 = min(len(labels), emb.shape[0])
+            labels = labels[:L2]
+            emb = emb[:L2, :]
+
+        else:   
+            # 既存ロジック（emb/labels 同時選択）
+            labels = labels_full
+            L = min(len(labels), emb.shape[0])
+            labels = labels[:L]
+            emb = emb[:L, :]
+
         if static_idx is not None and len(static_idx) > 0:
             sel = np.array(static_idx, dtype=np.int64) - 1 # 1-based → 0-based
             sel = sel[(sel >= 0) & (sel < L)]
             if sel.size > 0:
-                if not selection_already_applied:
-                    emb = emb[sel, :]
+                emb = emb[sel, :]
                 labels = [labels[j] for j in sel.tolist()]
         elif allow_sidecar_idx and os.path.isdir(idx_dir):
             idx_path = os.path.join(idx_dir, f"{i}.idx.npy")
@@ -306,15 +332,19 @@ def batch_generator(hparams, mode: str, start_from: int = 0, keep_order: bool = 
                 sel = np.load(idx_path).astype(np.int64).reshape(-1) - 1 # 1-based → 0-based
                 sel = sel[(sel >= 0) & (sel < L)]
                 if sel.size > 0:
-                    if not selection_already_applied:
-                        emb = emb[sel, :]
+                    emb = emb[sel, :]
                     labels = [labels[j] for j in sel.tolist()]
 
         # 検証
         if i == 0:
-            dec = Encoder(hparams).decode(labels)
-            print("labels_decoded=", dec, flush=True)
-
+            print("labels_decoded=", encoder.decode(labels), flush=True)
+            print("[DBG] selection_already_applied=", hparams.get("selection_already_applied"), flush=True)
+            print("[DBG] embeddings_path=", hparams.get("embeddings_path"), flush=True)
+            print("[DBG] source_embeddings_path_for_indices=", hparams.get("source_embeddings_path_for_indices"), flush=True)
+            print("[DBG] idx_dir=", idx_dir, flush=True)
+            print("[DBG] idx_exists=", os.path.isfile(os.path.join(idx_dir, "0.idx.npy")), flush=True)
+            print("[DBG] sel_head=", sel[:5] if 'sel' in locals() else None, "sel_size=", (sel.size if 'sel' in locals() else None))
+            
         buf[i] = (emb, labels)
         if len(buf) >= hparams['buffer_size']:
             yield gen_batch(buf, hparams, keep_order)
