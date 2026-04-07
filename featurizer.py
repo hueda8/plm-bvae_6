@@ -300,6 +300,12 @@ def batch_generator(hparams, mode: str, start_from: int = 0, keep_order: bool = 
                         emb = emb[sel, :]
                     labels = [labels[j] for j in sel.tolist()]
 
+        # 検証
+        if i == 0:
+            from featurizer import Encoder
+            dec = Encoder(hparams).decode(labels)
+            print("labels_decoded=", dec)
+
         buf[i] = (emb, labels)
         if len(buf) >= hparams['buffer_size']:
             yield gen_batch(buf, hparams, keep_order)
