@@ -270,8 +270,6 @@ def batch_generator(hparams, mode: str, start_from: int = 0, keep_order: bool = 
     allow_sidecar_idx = bool(hparams.get('allow_sidecar_indices', False))  # i.idx.npy を許可
 
     # sidecar index の参照先を決定
-    
-    idx_dir = os.path.join(emb_dir, "indices")
     if bool(hparams.get("selection_already_applied", False)):
         # trim cache 使用時は、labels選択のため元埋め込み側 indices を参照
         src_root = hparams.get("source_embeddings_path_for_indices", hparams["embeddings_path"])
@@ -334,16 +332,6 @@ def batch_generator(hparams, mode: str, start_from: int = 0, keep_order: bool = 
                     if sel.size > 0:
                         emb = emb[sel, :]
                         labels = [labels[j] for j in sel.tolist()]
-
-        # 検証
-        if i == 0:
-            print("labels_decoded=", encoder.decode(labels), flush=True)
-            print("[DBG] selection_already_applied=", hparams.get("selection_already_applied"), flush=True)
-            print("[DBG] embeddings_path=", hparams.get("embeddings_path"), flush=True)
-            print("[DBG] source_embeddings_path_for_indices=", hparams.get("source_embeddings_path_for_indices"), flush=True)
-            print("[DBG] idx_dir=", idx_dir, flush=True)
-            print("[DBG] idx_exists=", os.path.isfile(os.path.join(idx_dir, "0.idx.npy")), flush=True)
-            print("[DBG] sel_head=", sel[:5] if 'sel' in locals() else None, "sel_size=", (sel.size if 'sel' in locals() else None))
             
         buf[i] = (emb, labels)
         if len(buf) >= hparams['buffer_size']:
