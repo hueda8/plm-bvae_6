@@ -282,20 +282,22 @@ def batch_generator(hparams, mode: str, start_from: int = 0, keep_order: bool = 
         labels = labels[:L]; emb = emb[:L, :]
 
         # インデックス選択ロジック（優先順位: static_idx > sidecar indices/{i}.idx.npy）
-        if static_idx is not None and len(static_idx) > 0:
-            sel = np.array(static_idx, dtype=np.int64) - 1 # 1-based → 0-based
-            sel = sel[(sel >= 0) & (sel < L)]
-            if sel.size > 0:
-                emb = emb[sel, :]
-                labels = [labels[j] for j in sel.tolist()]
-        elif allow_sidecar_idx and os.path.isdir(idx_dir):
-            idx_path = os.path.join(idx_dir, f"{i}.idx.npy")
-            if os.path.isfile(idx_path):
-                sel = np.load(idx_path).astype(np.int64).reshape(-1) - 1 # 1-based → 0-based
+        selection_already_applied = bool(hparams.get("selection_already_applied", False))
+        if not selection_already_applied:
+            if static_idx is not None and len(static_idx) > 0:
+                sel = np.array(static_idx, dtype=np.int64) - 1 # 1-based → 0-based
                 sel = sel[(sel >= 0) & (sel < L)]
                 if sel.size > 0:
                     emb = emb[sel, :]
                     labels = [labels[j] for j in sel.tolist()]
+            elif allow_sidecar_idx and os.path.isdir(idx_dir):
+                idx_path = os.path.join(idx_dir, f"{i}.idx.npy")
+                if os.path.isfile(idx_path):
+                    sel = np.load(idx_path).astype(np.int64).reshape(-1) - 1 # 1-based → 0-based
+                    sel = sel[(sel >= 0) & (sel < L)]
+                    if sel.size > 0:
+                        emb = emb[sel, :]
+                        labels = [labels[j] for j in sel.tolist()]
 
         buf[i] = (emb, labels)
         if len(buf) >= hparams['buffer_size']:
