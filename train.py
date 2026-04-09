@@ -680,6 +680,26 @@ def main():
     device = setup_environment(hparams)
     rt = extract_runtime_params(hparams)
 
+    # on-the-fly (LoRA/full-FT) 用 selection cache ログ
+    if not rt['use_precomputed']:
+        static_idx = hparams.get("select_indices", None)
+        use_static = (static_idx is not None and len(static_idx) > 0)
+        use_sidecar = bool(hparams.get("allow_sidecar_indices", False))
+        use_text_sel_cache = bool(hparams.get("use_text_selection_cache", True))
+        cache_root = hparams.get(
+            "text_selection_cache_root",
+            os.path.join(hparams.get("embeddings_path", None), "text_sel_cache")
+        )
+        force_rebuild = bool(hparams.get("text_selection_cache_force_rebuild", False))
+
+        if use_static or use_sidecar:
+            print("[TEXT SEL CACHE][AUTO] enabled because select_indices/sidecar is used.")
+            print(f"[TEXT SEL CACHE][AUTO] use_text_selection_cache -> {use_text_sel_cache}")
+            print(f"[TEXT SEL CACHE][AUTO] root -> {cache_root}")
+            print(f"[TEXT SEL CACHE][AUTO] force_rebuild -> {force_rebuild}")
+        else:
+            print("[TEXT SEL CACHE][AUTO] disabled (no select_indices and allow_sidecar_indices=false).")
+
     # New: preflight check for sidecar indices consistency
     check_sidecar_indices_consistency(hparams, modes=("train", "dev", "test"))
 
