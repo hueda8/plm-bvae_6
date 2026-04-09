@@ -87,7 +87,7 @@ def suggest_hparams(
 
     # とりあえず、hp["latent_type"] = binary で固定
     hp["latent_type"] = base_hp.get("latent_type", "binary")
-    hp["latent_size"] = base_hp.get("latent_size", 128)
+    hp["latent_size"] = base_hp.get("latent_size", 64)
     # # Latent configuration
     # latent_choices = ["bottleneck", "vae", "binary", "gumbel"]
     # hp["latent_type"] = trial.suggest_categorical("latent_type", latent_choices)
@@ -106,11 +106,11 @@ def suggest_hparams(
     # hp["concat_latent_to_words"] = trial.suggest_categorical("concat_latent_to_words", [True, False])
 
     # Training runtime: 探索の初期は、探索範囲が小さい方が公平に他のパラメータを判断できる
-    hp["num_epochs"] = base_hp.get("num_epochs", 100)
+    hp["num_epochs"] = base_hp.get("num_epochs", 300)
     # hp["num_epochs"] = trial.suggest_int("num_epochs", 100, 400, step=100)
     # AMP dtype stays consistent
-    #hp["amp_dtype"] = base_hp.get("amp_dtype", "fp16")
-    hp["amp_dtype"] = trial.suggest_categorical("amp_dtype", ["fp16", "bf16", "fp32"])
+    hp["amp_dtype"] = base_hp.get("amp_dtype", "fp32")
+    # hp["amp_dtype"] = trial.suggest_categorical("amp_dtype", ["fp16", "bf16", "fp32"])
     hp["use_amp"] = base_hp.get("use_amp", True)
     hp["allow_tf32"] = base_hp.get("allow_tf32", True)
 
@@ -150,10 +150,10 @@ def suggest_hparams(
 
     # Misc
     hp["seed"] = base_hp.get("seed", 42)
-    hp["tokens_per_batch"] = base_hp.get("tokens_per_batch", 6000)
-    hp["buffer_size"] = base_hp.get("buffer_size", 3000)
-    hp["max_input_length"] = base_hp.get("max_input_length", 200)
-    hp["max_output_length"] = base_hp.get("max_output_length", 200)
+    hp["tokens_per_batch"] = base_hp.get("tokens_per_batch", 250)
+    hp["buffer_size"] = base_hp.get("buffer_size", 100)
+    hp["max_input_length"] = base_hp.get("max_input_length", 100)
+    hp["max_output_length"] = base_hp.get("max_output_length", 100)
     hp["vocab_size"] = base_hp.get("vocab_size", 23)
 
     # Precomputed embeddings setting (keep from base)
