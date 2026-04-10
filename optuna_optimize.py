@@ -18,6 +18,7 @@ from train import (
     run_epoch,
     ensure_embeddings,
 )
+from featurizer import prepare_trimmed_cache
 from load_hparams import loader_func, PrintHparamsInfo
 
 
@@ -106,7 +107,8 @@ def suggest_hparams(
     # hp["concat_latent_to_words"] = trial.suggest_categorical("concat_latent_to_words", [True, False])
 
     # Training runtime: 探索の初期は、探索範囲が小さい方が公平に他のパラメータを判断できる
-    hp["num_epochs"] = base_hp.get("num_epochs", 300)
+    hp["num_epochs"] = 300
+    # hp["num_epochs"] = base_hp.get("num_epochs", 300)
     # hp["num_epochs"] = trial.suggest_int("num_epochs", 100, 400, step=100)
     # AMP dtype stays consistent
     hp["amp_dtype"] = base_hp.get("amp_dtype", "fp32")
@@ -329,6 +331,23 @@ def objective(trial: optuna.Trial, base_hp: Dict[str, Any]) -> float:
 
     # Precompute embeddings if needed and infer embedding_dim
     if bool(hp.get("input_is_precomputed", False)):
+        static_idx = hp.get("select_indices", None)
+        use_static = static_idx is not None and len(static_idx) > 0
+        use_sidecar = bool(hp.get("allow_sidecar_indices", False))
+        need_trim_cache = use_static or use_sidecar
+
+        if need_trim_cache:
+            train_cache_dir = prepare_trimmed_cache(hp, mode="train", force_rebuild=False)
+            dev_cache_dir = prepare_trimmed_cache(hp, mode="dev", force_rebuild=False)
+            orig_embeddings_path = hp["embeddings_path"]
+            hp["embeddings_path"] = os.path.dirname(train_cache_dir)
+            hp["selection_already_applied"] = True
+            hp["source_embeddings_path_for_indices"] = orig_embeddings_path
+            print(f"[TRIM CACHE][AUTO] enabled because select_indices/sidecar is used.")
+            print(f"[TRIM CACHE][AUTO] embeddings_path -> {hp['embeddings_path']}")
+        else:
+            print("[TRIM CACHE][AUTO] disabled (no select_indices and allow_sidecar_indices=false).")
+
         ensure_embeddings(hp, modes=("train", "dev"))
         if "embedding_dim" not in hp or hp["embedding_dim"] is None:
             raise KeyError(
