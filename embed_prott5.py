@@ -6,7 +6,7 @@ import numpy as np
 from tqdm import tqdm
 from typing import List
 from collections import Counter
-from transformers import AutoTokenizer, T5EncoderModel
+from transformers import T5Tokenizer, T5EncoderModel
 from load_hparams import _flatten_hparams
 
 try:
@@ -45,7 +45,7 @@ def _resolve_amp_dtype(hp_amp_dtype: str) -> torch.dtype:
     raise ValueError(f"Unsupported amp_dtype '{hp_amp_dtype}'. Use one of: fp16, bf16, fp32")
 
 def load_model(encoder_model: str, tokenizer_model: str, amp_dtype: torch.dtype, device: str, lora_path: str = None, state_path: str = None):
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_model, do_lower_case=False)
+    tokenizer = T5Tokenizer.from_pretrained(tokenizer_model, do_lower_case=False)
     if device == "cuda" and amp_dtype in (torch.float16, torch.bfloat16):
         model = T5EncoderModel.from_pretrained(encoder_model, torch_dtype=amp_dtype)
     else:
