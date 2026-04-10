@@ -371,12 +371,32 @@ def build_scheduler(optimizer: torch.optim.Optimizer,
 # Checkpoint utilities
 # ============================================================
 
+def _extract_non_plm_state_dict(model: torch.nn.Module) -> dict:
+    """
+    Save only non-PLM params (AE side):
+      - encoder_stack
+      - latent_layer
+      - decoder_embeddings
+      - decoder
+      - etc.
+    Excludes: plm_extractor.plm.*
+    """
+    out = {}
+    for k, v in model.state_dict().items():
+        if not k.startswith("plm_extractor.plm."):
+            out[k] = v.detach().cpu()
+    return out
+
 def save_checkpoint_bundle(model: torch.nn.Module, hp: dict, kind: str = "last"):
     """
     Save a bundle of:
-      - model.pt (SeqModel state_dict + hparams)
-      - LoRA adapters (if enabled) via save_pretrained
-      - full pLM weights (if full finetune enabled)
+      - LoRA mode:
+          * lora_plm/   (adapter only)
+          * ae_head.pt  (non-PLM params + hparams)
+      - non-LoRA mode:
+          * model.pt (full SeqModel state_dict + hparams)
+      - full-FT sidecar:
+          * plm_full.pt (optional, existing behavior)
     kind:
       - "best": saved when dev improves
       - "last": saved at the end of training
@@ -387,20 +407,35 @@ def save_checkpoint_bundle(model: torch.nn.Module, hp: dict, kind: str = "last")
     base_dir = os.path.join(hp['model_path'], "best" if kind == "best" else "last")
     os.makedirs(base_dir, exist_ok=True)
 
-    # Save main model
-    model_path = os.path.join(base_dir, 'model.pt')
-    torch.save({'model': model.state_dict(), 'hparams': hp}, model_path)
-    print(f"[CKPT:{kind}] Saved SeqModel -> {model_path}")
+    is_lora = bool(getattr(getattr(model, "plm_extractor", None), "lora_enable", False))
+    is_fullft = bool(getattr(getattr(model, "plm_extractor", None), "full_finetune_enable", False))
 
-    # Save PLM sidecars if available
+    if is_lora:
+        # 1) LoRA adapter only
+        if hasattr(model.plm_extractor.plm, "save_pretrained"):
+            lora_dir = os.path.join(base_dir, "lora_plm")
+            os.makedirs(lora_dir, exist_ok=True)
+            model.plm_extractor.plm.save_pretrained(lora_dir)
+            print(f"[CKPT:{kind}] Saved LoRA adapters -> {lora_dir}")
+        else:
+            raise RuntimeError("LoRA is enabled but plm has no save_pretrained().")
+
+        # 2) AE side only (exclude plm_extractor.plm.*)
+        ae_path = os.path.join(base_dir, "ae_head.pt")
+        ae_state = _extract_non_plm_state_dict(model)
+        torch.save({"ae": ae_state, "hparams": hp}, ae_path)
+        print(f"[CKPT:{kind}] Saved AE head -> {ae_path}")
+
+    else:
+        # model.pt (full SeqModel state_dict + hparams)
+        model_path = os.path.join(base_dir, 'model.pt')
+        torch.save({'model': model.state_dict(), 'hparams': hp}, model_path)
+        print(f"[CKPT:{kind}] Saved SeqModel -> {model_path}")
+
+    # full-FT sidecar (existing)
     try:
         if hasattr(model, 'plm_extractor') and model.plm_extractor:
-            if getattr(model.plm_extractor, 'lora_enable', False) and hasattr(model.plm_extractor.plm, 'save_pretrained'):
-                lora_dir = os.path.join(base_dir, 'lora_plm')
-                os.makedirs(lora_dir, exist_ok=True)
-                model.plm_extractor.plm.save_pretrained(lora_dir)
-                print(f"[CKPT:{kind}] Saved LoRA adapters -> {lora_dir}")
-            if getattr(model.plm_extractor, 'full_finetune_enable', False):
+            if is_fullft:
                 plm_path = os.path.join(base_dir, 'plm_full.pt')
                 torch.save(model.plm_extractor.plm.state_dict(), plm_path)
                 print(f"[CKPT:{kind}] Saved full pLM weights -> {plm_path}")
