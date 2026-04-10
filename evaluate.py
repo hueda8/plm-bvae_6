@@ -75,12 +75,37 @@ if __name__ == "__main__":
     model = SeqModel(hparams).to(device)
     ckpt_dir = os.path.join(hparams['model_path'], args.checkpoint_kind)
     model_path = os.path.join(ckpt_dir, 'model.pt')
-    if not os.path.isfile(model_path):
-        raise FileNotFoundError(f"Checkpoint file not found: {model_path}")
-    ckpt = torch.load(model_path, map_location=device)
-    missing, unexpected = model.load_state_dict(ckpt['model'], strict=False)
-    print(f"[EVAL] Missing keys: {len(missing)}")
-    print(f"[EVAL] Unexpected keys: {len(unexpected)}")
+    lora_dir = os.path.join(ckpt_dir, 'lora_plm')
+    ae_path = os.path.join(ckpt_dir, 'ae_head.pt')
+    
+    if os.path.isfile(model_path):
+        ckpt = torch.load(model_path, map_location=device)
+        missing, unexpected = model.load_state_dict(ckpt['model'], strict=False)
+        print(f"[EVAL] Missing keys: {len(missing)}")
+        print(f"[EVAL] Unexpected keys: {len(unexpected)}")
+        print(f"[EVAL] Loaded checkpoint '{args.checkpoint_kind}': {model_path}")
+    else:
+        # LoRA-only bundle: lora_plm + ae_head.pt
+        if not (bool(hparams.get("lora_enable", False)) and os.path.isdir(lora_dir) and os.path.isfile(ae_path)):
+            raise FileNotFoundError(
+                f"Neither full checkpoint nor LoRA bundle found.\n"
+                f"  model.pt: {model_path}\n"
+                f"  lora_plm: {lora_dir}\n"
+                f"  ae_head.pt: {ae_path}"
+            )
+
+        from peft import PeftModel
+
+        # load LoRA adapter into base PLM
+        base_plm = model.plm_extractor.plm
+        model.plm_extractor.plm = PeftModel.from_pretrained(base_plm, lora_dir).to(device)
+
+        # load AE-side params
+        ae_ckpt = torch.load(ae_path, map_location=device)
+        missing, unexpected = model.load_state_dict(ae_ckpt["ae"], strict=False)
+        print(f"[EVAL] (LoRA+AE) Missing keys: {len(missing)}")
+        print(f"[EVAL] (LoRA+AE) Unexpected keys: {len(unexpected)}")
+        print(f"[EVAL] Loaded LoRA bundle '{args.checkpoint_kind}': {lora_dir} + {ae_path}")
 
     model.eval()
     print(f"[EVAL] Loaded checkpoint '{args.checkpoint_kind}': {model_path}")
