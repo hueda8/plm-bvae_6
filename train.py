@@ -65,6 +65,20 @@ def setup_environment(hp: dict) -> torch.device:
     """Set device, seed, and TF32 flags."""
     PrintHparamsInfo(hp)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    cuda_available = torch.cuda.is_available()
+    cuda_count = torch.cuda.device_count()
+    print(f"[DEVICE] selected_device={device}")
+    print(f"[DEVICE] torch.cuda.is_available()={cuda_available}, torch.cuda.device_count()={cuda_count}")
+
+    if cuda_available and device.type == "cuda":
+        try:
+            cur_idx = torch.cuda.current_device()
+            print(f"[DEVICE] current_device_index={cur_idx}")
+            print(f"[DEVICE] current_device_name={torch.cuda.get_device_name(cur_idx)}")
+        except Exception as e:
+            print(f"[DEVICE][WARN] Failed to query CUDA device details: {e}")
+    else:
+        print("[DEVICE][WARN] CUDA is not available. Training will run on CPU.")
 
     # Use hparams['seed'] if available; default to 42
     seed_value = int(hp.get('seed', 42))
