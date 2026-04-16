@@ -32,7 +32,9 @@ if __name__ == "__main__":
         test_cache_dir = prepare_trimmed_cache(hparams, mode="test", force_rebuild=False)
         hparams["embeddings_path"] = os.path.dirname(test_cache_dir)
         hparams["source_embeddings_path_for_indices"] = orig_embeddings_path
+        print(f"[TRIM CACHE][AUTO][ENCODE] enabled.")
         print(f"[TRIM CACHE][AUTO][ENCODE] embeddings_path -> {hparams['embeddings_path']}")
+        print(f"[TRIM CACHE][AUTO]ENCODE] source_embeddings_path_for_indices -> {hparams['source_embeddings_path_for_indices']}")
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
