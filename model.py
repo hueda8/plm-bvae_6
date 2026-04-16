@@ -837,7 +837,6 @@ class SeqModel(nn.Module):
 
         # Token-average NLL (length normalized principal loss)
         nll_avg_seq = token_losses.sum(dim=1) / token_counts                   # [B]
-        ppl_seq = torch.exp(nll_avg_seq)
 
         smooth = float(self.hp.get('label_smoothing', 0.0))
         apply_smoothing = (smooth > 0.0) and (mode == 'train')
@@ -850,16 +849,14 @@ class SeqModel(nn.Module):
 
             nll_s_sum_seq = (nll_s_tok * ce_mask).sum(dim=1)
             nll_s_avg_seq = nll_s_sum_seq / token_counts
-            ppl_s_seq = torch.exp(nll_s_avg_seq)
             if mode == 'train':
                 nll_final = nll_s_avg_seq.mean()
-                ppl_final = ppl_s_seq.mean()
             else:
                 nll_final = nll_avg_seq.mean()
-                ppl_final = ppl_seq.mean()
         else:
             nll_final = nll_avg_seq.mean()
-            ppl_final = ppl_seq.mean()
+
+        ppl_final = torch.exp(nll_final)
 
         losses['nll'] = nll_final
         losses['ppl'] = ppl_final
