@@ -53,10 +53,13 @@ if __name__ == "__main__":
     need_trim_cache = use_static or use_sidecar
 
     if need_trim_cache:
+        original_embeddings_path = hparams["embeddings_path"]
         test_cache_dir = prepare_trimmed_cache(hparams, mode="test", force_rebuild=False)
+        hparams["source_embeddings_path_for_indices"] = original_embeddings_path
         hparams["embeddings_path"] = os.path.dirname(test_cache_dir)
         print(f"[TRIM CACHE][AUTO][EVAL] enabled.")
         print(f"[TRIM CACHE][AUTO][EVAL] embeddings_path -> {hparams['embeddings_path']}")
+        print(f"[TRIM CACHE][AUTO][EVAL] source_embeddings_path_for_indices -> {hparams['source_embeddings_path_for_indices']}")
     else:
         print("[TRIM CACHE][AUTO][EVAL] disabled.")
     
