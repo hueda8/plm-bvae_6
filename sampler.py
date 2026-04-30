@@ -7,7 +7,7 @@ from dwave.system.composites import EmbeddingComposite
 from parrot import py_predictor as ppp
 
 # TorchFM separated module (as discussed)
-from fmqa_torch import TorchFMBQM
+from fmqa import TorchFMBQM
 
 # -----------------------------
 # Config
