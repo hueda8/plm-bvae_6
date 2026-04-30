@@ -34,7 +34,7 @@ PENALTY_SCORE = 1.0e6
 # Predictor (single objective)
 # -----------------------------
 my_predictor_1 = ppp.Predictor(
-    "./parrot_models/full_log_deldup_weight1_opt_network.pt",
+    "./parrot_models/final_network.pt",
     dtype="sequence",
 )
 
@@ -169,7 +169,7 @@ def seq_fix():
     return seq_d
 
 
-def objective_single_fullseq(seq_list):
+def objective_function(seq_list):
     vals = []
     for s in seq_list:
         s = (s or "").strip()
@@ -209,7 +209,7 @@ def main():
 
     # Initial sequence eval (single objective)
     seq_d_all = seq_fix()
-    scores = objective_single_fullseq(seq_d_all)  # for from_data()
+    scores = objective_function(seq_d_all)  # for from_data()
 
     # log initial best (minimize)
     with open("./model_output/binary/all_points_best.txt", "w") as oo:
@@ -307,7 +307,7 @@ def main():
         seq_d = seq_fix()
 
         # evaluate sampled sequences (single objective)
-        scores_sample = objective_single_fullseq(seq_d)
+        scores_sample = objective_function(seq_d)
         scores_all = np.r_[scores_all, scores_sample].astype(np.float32)
 
         # energy diagnostics for best read
