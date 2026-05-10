@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import math
+import random
 from dataclasses import dataclass
 from typing import Literal
 
@@ -10,6 +11,18 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+def set_global_seed(seed: int, deterministic: bool = False) -> None:
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    if deterministic:
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        try:
+            torch.use_deterministic_algorithms(True)
+        except Exception:
+            pass
 
 # -----------------------------
 # Init-scale helpers (your current strength)
@@ -211,7 +224,14 @@ class TorchFMBQM:
         scale_v: float | None = None,
         init_mode: str = "normal",      # "uniform" | "normal"
         normal_std: float = 0.01,
+        seed: int | None = 42,
+        deterministic: bool = False,
     ):
+        self.seed = seed
+        self.deterministic = deterministic
+        if self.seed is not None:
+            set_global_seed(self.seed, deterministic=self.deterministic)
+        
         self.input_size = input_size
         self.k = k
         self.lr = lr
@@ -233,6 +253,8 @@ class TorchFMBQM:
         patience: int | None = 50,
         auto_scale: bool = False,
         normal_std: float = 0.01,
+        seed: int | None = 42,
+        deterministic: bool = False,
     ) -> "TorchFMBQM":
         x = np.asarray(x, dtype=np.float32)
         y = np.asarray(y, dtype=np.float32)
@@ -263,6 +285,8 @@ class TorchFMBQM:
             scale_v=scale_v,
             init_mode=init_mode,
             normal_std=normal_std,
+            seed=seed,
+            deterministic=deterministic,
         )
         obj.train(x, y)
         return obj
