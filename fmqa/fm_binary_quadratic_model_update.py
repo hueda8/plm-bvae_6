@@ -51,12 +51,16 @@ def compute_init_scales(x_np: np.ndarray, y_np: np.ndarray, k: int) -> tuple[flo
 # Torch FM
 # -----------------------------
 class TorchFM(nn.Module):
-    def __init__(self, d: int, k: int, scale_w: float = 0.1, scale_v: float = 0.1):
+    def __init__(self, d: int, k: int, scale_w: float = 0.1, scale_v: float = 0.1, init_mode: str = "normal", normal_std: float = 0.01):
         super().__init__()
         self.d = d
         self.k = k
-        self.w = nn.Parameter(torch.empty(d).uniform_(-scale_w, scale_w))
-        self.v = nn.Parameter(torch.empty(d, k).uniform_(-scale_v, scale_v))
+        if init_mode == "normal":
+            self.w = nn.Parameter(torch.empty(d).normal_(mean=0.0, std=normal_std))
+            self.v = nn.Parameter(torch.empty(d, k).normal_(mean=0.0, std=normal_std))
+        else:
+            self.w = nn.Parameter(torch.empty(d).uniform_(-scale_w, scale_w))
+            self.v = nn.Parameter(torch.empty(d, k).uniform_(-scale_v, scale_v))
         self.w0 = nn.Parameter(torch.zeros(()))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -205,6 +209,8 @@ class TorchFMBQM:
         patience: int | None = 50,
         scale_w: float | None = None,
         scale_v: float | None = None,
+        init_mode: str = "normal",      # "uniform" | "normal"
+        normal_std: float = 0.01,
     ):
         self.input_size = input_size
         self.k = k
@@ -214,7 +220,7 @@ class TorchFMBQM:
 
         sw = 0.1 if scale_w is None else scale_w
         sv = 0.1 if scale_v is None else scale_v
-        self.model = TorchFM(d=input_size, k=k, scale_w=sw, scale_v=sv)
+        self.model = TorchFM(d=input_size, k=k, scale_w=sw, scale_v=sv, init_mode=init_mode, normal_std=normal_std)
 
     @classmethod
     def from_data(
@@ -225,7 +231,8 @@ class TorchFMBQM:
         lr: float = 1e-2,
         epochs: int = 1000,
         patience: int | None = 50,
-        auto_scale: bool = True,
+        auto_scale: bool = False,
+        normal_std: float = 0.01,
     ) -> "TorchFMBQM":
         x = np.asarray(x, dtype=np.float32)
         y = np.asarray(y, dtype=np.float32)
@@ -241,8 +248,10 @@ class TorchFMBQM:
 
         if auto_scale:
             scale_w, scale_v = compute_init_scales(x, y, k=k)
+            init_mode = "uniform"
         else:
-            scale_w, scale_v = 0.1, 0.1
+            scale_w, scale_v = 0.1, 0.1  # normal時は未使用だが互換のため保持
+            init_mode = "normal"
 
         obj = cls(
             input_size=x.shape[1],
@@ -252,6 +261,8 @@ class TorchFMBQM:
             patience=patience,
             scale_w=scale_w,
             scale_v=scale_v,
+            init_mode=init_mode,
+            normal_std=normal_std,
         )
         obj.train(x, y)
         return obj
