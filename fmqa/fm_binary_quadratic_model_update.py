@@ -3,7 +3,6 @@ from __future__ import annotations
 import copy
 import math
 import random
-from dataclasses import dataclass
 from typing import Literal
 
 import dimod
@@ -202,14 +201,6 @@ def _scale_ising(h: np.ndarray, J: np.ndarray, b: float) -> tuple[np.ndarray, np
 def _scale_qubo(Q: np.ndarray, b: float) -> tuple[np.ndarray, float]:
     m = max(float(np.max(np.abs(Q))), 1e-12)
     return Q / m, b / m
-
-
-@dataclass
-class TorchFMBQMConfig:
-    rank: int = 8
-    lr: float = 1e-2
-    epochs: int = 1000
-    patience: int | None = 50
 
 
 class TorchFMBQM:
