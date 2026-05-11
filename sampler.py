@@ -193,6 +193,8 @@ def objective_function(seq_list):
 # Main
 # -----------------------------
 def main():
+    # log directory
+    os.makedirs("./model_output/binary/fm_log", exist_ok=True)
     # Decode initial binary vector set
     os.system(
         'CUDA_VISIBLE_DEVICES="" python decode_file.py --hparams_path experiment_configs/binary.json '
@@ -366,4 +368,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    os.makedirs("./model_output/binary/fm_log", exist_ok=True)
