@@ -349,7 +349,7 @@ def main():
                 oo.write(f"{scores_sample[i]:.16g} {E_norm_reads[i]:.16g} {cbf_reads[i]:.16g}\n")
 
         # FM re-training (requested style)
-        iter_log_path = f"./model_output/binary/fm_train_log_iter_{iter_idx+1:04d}.csv"
+        iter_log_path = f"./model_output/binary/fm_log/fm_train_log_iter_{iter_idx+1:04d}.csv"
         fmbqm.train(
             vectors_all,
             scores_all,
