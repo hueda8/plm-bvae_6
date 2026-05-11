@@ -1,4 +1,4 @@
-from .fm_binary_quadratic_model_torch import (
+from .fm_binary_quadratic_model import (
     TorchFM,
     TorchFMBQM,
     get_uniform_scale_for_linear,
@@ -6,7 +6,6 @@ from .fm_binary_quadratic_model_torch import (
     compute_init_scales,
     build_optimizer,
     train_fm,
-    torchfm_to_bqm,
 )
 
 __all__ = [
@@ -17,5 +16,4 @@ __all__ = [
     "compute_init_scales",
     "build_optimizer",
     "train_fm",
-    "torchfm_to_bqm",
 ]
