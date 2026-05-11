@@ -259,7 +259,7 @@ def main():
                 bqm,
                 annealing_time=ANNEALING_TIME,
                 num_reads=NUM_READS,
-                chain_strength=CHAIN_STRENGTH,
+                #chain_strength=CHAIN_STRENGTH,
                 chain_break_fraction=True,
             )
         except ValueError as e:
@@ -271,7 +271,7 @@ def main():
                 solver=DWAVE_SOLVER,
                 annealing_time=ANNEALING_TIME,
                 num_reads=NUM_READS,
-                chain_strength=CHAIN_STRENGTH,
+                #chain_strength=CHAIN_STRENGTH,
                 max_retries=MAX_RETRIES,
             )
 
@@ -281,7 +281,7 @@ def main():
             res,
             sampler,
             bqm,
-            CHAIN_STRENGTH,
+            #CHAIN_STRENGTH,
         )
 
         # append sampled binary vectors
