@@ -32,6 +32,7 @@ DWAVE_TOKEN = "XXXX"  # set your token
 
 # penalty for invalid/failed prediction (minimization)
 PENALTY_SCORE = 1.0e6
+MAX_SAME_AA_RUN = 5
 
 # -----------------------------
 # Predictor (single objective)
@@ -188,6 +189,18 @@ def seq_fix():
 
     return seq_d
 
+def has_run_of_same_char(s: str, n: int) -> bool:
+    if n <= 1:
+        return len(s) > 0
+    run = 1
+    for i in range(1, len(s)):
+        if s[i] == s[i - 1]:
+            run += 1
+            if run >= n:
+                return True
+        else:
+            run = 1
+    return False
 
 def black_box_function(seq_list):
     vals = []
@@ -196,6 +209,12 @@ def black_box_function(seq_list):
         if len(s) == 0 or "<pad>" in s or "<unk>" in s:
             vals.append(PENALTY_SCORE)
             continue
+        
+        # 同一文字が n 連続以上ならペナルティ
+        if has_run_of_same_char(s, MAX_SAME_AA_RUN):
+            vals.append(PENALTY_SCORE)
+            continue
+        
         try:
             v = float(my_predictor_1.predict(s)[0])  # full sequence directly
             if np.isnan(v) or np.isinf(v):
