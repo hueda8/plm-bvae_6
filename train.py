@@ -750,7 +750,11 @@ def main():
             print("[TEXT SEL CACHE][AUTO] disabled (no select_indices and allow_sidecar_indices=false).")
 
     # New: preflight check for sidecar indices consistency
-    check_sidecar_indices_consistency(hparams, modes=("train", "dev", "test"))
+    sidecar_check_modes = ["train", "dev"]
+    test_txt = os.path.join(hparams["data_path"], "test.txt")
+    if os.path.isfile(test_txt):
+        sidecar_check_modes.append("test")
+    check_sidecar_indices_consistency(hparams, modes=tuple(sidecar_check_modes))
 
     if rt['use_precomputed']:
         static_idx = hparams.get("select_indices", None)
