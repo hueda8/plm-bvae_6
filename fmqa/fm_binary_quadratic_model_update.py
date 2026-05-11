@@ -146,7 +146,7 @@ def train_fm(
         train_loader = DataLoader(train_ds, batch_size=eff_bs, shuffle=True)
     
     best_state = copy.deepcopy(model.state_dict())
-    best_loss = float("inf")
+    best_metric = float("inf")
     stall = 0
 
     for _ in range(epochs):
