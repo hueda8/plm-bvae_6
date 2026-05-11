@@ -214,8 +214,8 @@ def main():
     os.makedirs("./model_output/binary/fm_log", exist_ok=True)
     # Decode initial binary vector set
     os.system(
-        'CUDA_VISIBLE_DEVICES="" python decode_file.py --hparams_path experiment_configs/binary.yml'
-        "--checkpoint_kind best"
+        'CUDA_VISIBLE_DEVICES="" python decode_file.py --hparams_path experiment_configs/binary.yml '
+        "--checkpoint_kind best "
         "--decode_strategy greedy"
     )
 
@@ -320,8 +320,8 @@ def main():
         # decode sampled vectors
         with open("./model_output/binary/decoded.txt", "w"):
             os.system(
-                'CUDA_VISIBLE_DEVICES="" python decode_file.py --hparams_path experiment_configs/binary.yml'
-                "--checkpoint_kind best"
+                'CUDA_VISIBLE_DEVICES="" python decode_file.py --hparams_path experiment_configs/binary.yml '
+                "--checkpoint_kind best "
                 "--decode_strategy greedy"
             )
 
