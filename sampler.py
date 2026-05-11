@@ -134,7 +134,7 @@ def append_qpu_log_csv(csv_path, iter_idx, res, sampler, bqm, requested_chain_st
 
 
 def sample_with_more_embedding_effort(
-    bqm, token, num_reads, annealing_time, chain_strength, solver, endpoint, max_retries
+    bqm, token, num_reads, annealing_time, solver, endpoint, max_retries, #chain_strength,
 ):
     last = None
     for k in range(1, max_retries + 1):
@@ -146,7 +146,7 @@ def sample_with_more_embedding_effort(
                 bqm,
                 num_reads=num_reads,
                 annealing_time=annealing_time,
-                chain_strength=chain_strength,
+                #chain_strength=chain_strength,
                 chain_break_fraction=True,
             )
         except ValueError as e:
