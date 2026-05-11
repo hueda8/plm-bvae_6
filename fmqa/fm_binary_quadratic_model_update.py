@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import copy
 import math
 import random
@@ -119,8 +120,8 @@ def train_fm(
     n = X.shape[0]
     if n < 2 or val_ratio <= 0.0:
         # fallback: no validation split
-        train_ds = TensorDataset(X, Y)
-        val_ds = None
+        X_train, Y_train = X, Y
+        X_val, Y_val = None, None
     else:
         n_val = max(1, int(n * val_ratio))
         n_val = min(n_val, n - 1)  # ensure train >= 1
@@ -157,7 +158,7 @@ def train_fm(
             if need_header:
                 f.write("epoch,train_loss,val_loss,metric,best_metric,stall\n")
 
-    for _ in range(epochs):
+    for epoch_idx in range(epochs):
         # ---- train phase ----
         model.train()
         # full-batch update
