@@ -252,8 +252,16 @@ def main():
         split_seed=42,
         log_path="./model_output/binary/fm_log/fm_train_log_iter_0000.csv",
     )
-    bqm = fmbqm.to_bqm()
 
+    # Simulated annealing for sampling
+    #sampler = dimod.samplers.SimulatedAnnealingSampler()
+
+    # For performance assessment use, replace "sampler" with the following code.
+    #sampler = dimod.samplers.RandomSampler()
+
+    # D-wave
+    bqm = fmbqm.to_bqm()
+    
     sampler = EmbeddingComposite(
         DWaveSampler(
             endpoint=DWAVE_ENDPOINT,
@@ -272,7 +280,11 @@ def main():
     scores_all = scores.copy()
 
     for iter_idx in range(N_ITER):
-        # sample
+        
+        # Simulated annealing or Random sampling
+        #res = sampler.sample(model, num_reads=10)
+        
+        # D-wave
         try:
             res = sampler.sample(
                 bqm,
@@ -373,6 +385,8 @@ def main():
             split_seed=42 + iter_idx, # 反復ごとに再現可能な変化をつける
             log_path=iter_log_path,
         )
+
+        # D-wave
         bqm = fmbqm.to_bqm()
 
 
