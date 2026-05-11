@@ -218,6 +218,8 @@ def main():
     with open("./model_output/binary/all_points_best.txt", "w") as oo:
         oo.write(f"{0} {np.min(scores):.16g}\n")
 
+    # initialize logs/files
+    os.system("rm -f ./model_output/binary/fm_log/fm_train_log_iter_*.csv")
     # FM training (requested style)
     fmbqm = TorchFMBQM.from_data(
         vectors_all,
@@ -229,6 +231,7 @@ def main():
         val_ratio=FM_VAL_RATIO,
         batch_size=FM_BATCH_SIZE,
         split_seed=42,
+        log_path="./model_output/binary/fm_log/fm_train_log_iter_0000.csv",
     )
     bqm = fmbqm.to_bqm()
 
@@ -346,6 +349,7 @@ def main():
                 oo.write(f"{scores_sample[i]:.16g} {E_norm_reads[i]:.16g} {cbf_reads[i]:.16g}\n")
 
         # FM re-training (requested style)
+        iter_log_path = f"./model_output/binary/fm_train_log_iter_{iter_idx+1:04d}.csv"
         fmbqm.train(
             vectors_all,
             scores_all,
@@ -355,6 +359,7 @@ def main():
             val_ratio=FM_VAL_RATIO,
             batch_size=FM_BATCH_SIZE,
             split_seed=42 + iter_idx, # 反復ごとに再現可能な変化をつける
+            log_path=iter_log_path,
         )
         bqm = fmbqm.to_bqm()
 
