@@ -9,6 +9,7 @@ import dimod
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.utils.data import TensorDataset, DataLoader, random_split
 
 def set_global_seed(seed: int, deterministic: bool = False) -> None:
     random.seed(seed)
@@ -104,26 +105,89 @@ def train_fm(
     optimizer: torch.optim.Optimizer,
     epochs: int = 1000,
     patience: int | None = 50,
+    val_ratio: float = 0.2,
+    batch_size: int | None = 64,
+    split_seed: int | None = None,
 ) -> None:
     X = torch.from_numpy(x_np).float()
     Y = torch.from_numpy(y_np).float()
 
     loss_fn = nn.MSELoss()
+
+    # ---- split (train / val) ----
+    n = X.shape[0]
+    if n < 2 or val_ratio <= 0.0:
+        # fallback: no validation split
+        train_ds = TensorDataset(X, Y)
+        val_ds = None
+    else:
+        n_val = max(1, int(n * val_ratio))
+        n_val = min(n_val, n - 1)  # ensure train >= 1
+        n_train = n - n_val
+        full_ds = TensorDataset(X, Y)
+
+        gen = None
+        if split_seed is not None:
+            gen = torch.Generator()
+            gen.manual_seed(int(split_seed))
+        
+        perm = torch.randperm(n, generator=gen)
+        val_idx = perm[:n_val]
+        train_idx = perm[n_val:]
+
+        X_train, Y_train = X[train_idx], Y[train_idx]
+        X_val, Y_val = X[val_idx], Y[val_idx]
+
+    # mini-batch用ローダ（batch_sizeが指定されたときのみ使う）
+    train_loader = None
+    if batch_size is not None:
+        train_ds = TensorDataset(X_train, Y_train)
+        eff_bs = min(int(batch_size), len(train_ds))
+        train_loader = DataLoader(train_ds, batch_size=eff_bs, shuffle=True)
+    
     best_state = copy.deepcopy(model.state_dict())
     best_loss = float("inf")
     stall = 0
 
     for _ in range(epochs):
+        # ---- train phase ----
         model.train()
-        optimizer.zero_grad()
-        pred = model(X)
-        loss = loss_fn(pred, Y)
-        loss.backward()
-        optimizer.step()
+        # full-batch update
+        if batch_size is None:
+            optimizer.zero_grad()
+            pred = model(X_train)
+            loss = loss_fn(pred, Y_train)
+            loss.backward()
+            optimizer.step()
+            train_loss = float(loss.item())
+        # mini-batch update
+        else:
+            train_loss_sum = 0.0
+            train_count = 0
+            for xb, yb in train_loader:
+                optimizer.zero_grad()
+                pred = model(xb)
+                loss = loss_fn(pred, yb)
+                loss.backward()
+                optimizer.step()
+                
+                bs = xb.shape[0]
+                train_loss_sum += float(loss.item()) * bs
+                train_count += bs
+            train_loss = train_loss_sum / max(train_count, 1)
 
-        cur_loss = loss.item()
-        if cur_loss < best_loss - 1e-9:
-            best_loss = cur_loss
+        # ---- validation phase ----
+        if X_val is not None:
+            model.eval()
+            with torch.no_grad():
+                val_pred = model(X_val)
+                metric = float(loss_fn(val_pred, Y_val).item())  # early stopping target
+        
+        else:
+            metric = train_loss  # fallback if no val split
+
+        if metric < best_metric - 1e-9:
+            best_metric = metric
             best_state = copy.deepcopy(model.state_dict())
             stall = 0
         else:
@@ -246,6 +310,9 @@ class TorchFMBQM:
         normal_std: float = 0.01,
         seed: int | None = 42,
         deterministic: bool = False,
+        val_ratio: float = 0.2,
+        batch_size: int | None = 64,
+        split_seed: int | None = None,
     ) -> "TorchFMBQM":
         x = np.asarray(x, dtype=np.float32)
         y = np.asarray(y, dtype=np.float32)
@@ -279,7 +346,16 @@ class TorchFMBQM:
             seed=seed,
             deterministic=deterministic,
         )
-        obj.train(x, y)
+        obj.train(
+            x,
+            y,
+            lr=lr,
+            epochs=epochs,
+            patience=patience,
+            val_ratio=val_ratio,
+            batch_size=batch_size,
+            split_seed=split_seed,
+        )
         return obj
 
     def train(
@@ -289,6 +365,9 @@ class TorchFMBQM:
         lr: float | None = None,
         epochs: int | None = None,
         patience: int | None = None,
+        val_ratio: float = 0.2,
+        batch_size: int | None = 64,
+        split_seed: int | None = None,
     ) -> None:
         x = np.asarray(x, dtype=np.float32)
         y = np.asarray(y, dtype=np.float32)
@@ -298,7 +377,17 @@ class TorchFMBQM:
         _patience = self.patience if patience is None else patience
 
         optimizer = build_optimizer(self.model, base_lr=_lr)
-        train_fm(x, y, self.model, optimizer, epochs=_epochs, patience=_patience)
+        train_fm(
+            x,
+            y,
+            self.model,
+            optimizer,
+            epochs=_epochs,
+            patience=_patience,
+            val_ratio=val_ratio,
+            batch_size=batch_size,
+            split_seed=split_seed,
+        )
 
     def predict(self, x: np.ndarray) -> np.ndarray:
         x = np.asarray(x, dtype=np.float32)
