@@ -407,6 +407,7 @@ class TorchFMBQM:
             val_ratio=val_ratio,
             batch_size=batch_size,
             split_seed=split_seed,
+            log_path=log_path,
         )
 
     def predict(self, x: np.ndarray) -> np.ndarray:
