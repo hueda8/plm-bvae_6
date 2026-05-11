@@ -12,6 +12,9 @@ from fmqa import TorchFMBQM
 # -----------------------------
 # Config
 # -----------------------------
+OPTIMIZE_DIRECTION = "min"  # "min" or "max"
+
+# FMQA
 FM_RANK = 8
 FM_LR = 0.01
 FM_EPOCHS = 1000
@@ -202,6 +205,13 @@ def has_run_of_same_char(s: str, n: int) -> bool:
             run = 1
     return False
 
+def to_minimization_target(values: np.ndarray, direction: str) -> np.ndarray:
+    if direction == "min":
+        return values.astype(np.float32)
+    if direction == "max":
+        return (-values).astype(np.float32)
+    raise ValueError("direction must be 'min' or 'max'")
+
 def black_box_function(seq_list):
     vals = []
     for s in seq_list:
@@ -250,11 +260,15 @@ def main():
 
     # Initial sequence eval (single objective)
     seq_d_all = seq_fix()
-    scores = black_box_function(seq_d_all)  # for from_data()
+    scores_raw = black_box_function(seq_d_all) # for reporting
+    scores = to_minimization_target(scores_raw, OPTIMIZE_DIRECTION)  # FM学習用ターゲット: max の場合符号反転
 
     # log initial best (minimize)
     with open("./model_output/binary/all_points_best.txt", "w") as oo:
-        oo.write(f"{0} {np.min(scores):.16g}\n")
+        if OPTIMIZE_DIRECTION == "min":
+            oo.write(f"{0} {np.min(scores_raw):.16g}\n")
+        else:
+            oo.write(f"{0} {np.max(scores_raw):.16g}\n")
 
     # initialize logs/files
     os.system("rm -f ./model_output/binary/fm_log/fm_train_log_iter_*.csv")
@@ -295,8 +309,10 @@ def main():
     os.system("rm -f ./model_output/binary/all_points_samples.txt")
     os.system("rm -f ./model_output/binary/qpu_diag_log.csv")
 
-    # accumulated single-objective scores
+    # accumulated targets for FM (always minimization target)
     scores_all = scores.copy()
+    # accumulated raw black-box values (for reporting)
+    scores_raw_all = scores_raw.copy()
 
     for iter_idx in range(N_ITER):
         
@@ -363,8 +379,11 @@ def main():
         seq_d = seq_fix()
 
         # evaluate sampled sequences (single objective)
-        scores_sample = black_box_function(seq_d)
+        scores_sample_raw = black_box_function(seq_d)
+        scores_sample = to_minimization_target(scores_sample_raw, OPTIMIZE_DIRECTION) # FM学習用ターゲット: max の場合符号反転
+        
         scores_all = np.r_[scores_all, scores_sample].astype(np.float32)
+        scores_raw_all = np.r_[scores_raw_all, scores_sample_raw].astype(np.float32)
 
         # energy diagnostics (shared)
         metrics = compute_energy_metrics(res, bqm)
@@ -379,12 +398,13 @@ def main():
 
         # best-so-far (minimize objective)
         with open("./model_output/binary/all_points_best.txt", "a") as oo:
-            oo.write(f"{iter_idx+1} {np.min(scores_all):.16g} {E_best_norm:.16g} {cbf_best:.16g}\n")
+            best_bb = np.min(scores_raw_all) if OPTIMIZE_DIRECTION == "min" else np.max(scores_raw_all)
+            oo.write(f"{iter_idx+1} {best_bb:.16g} {E_best_norm:.16g} {cbf_best:.16g}\n")
 
         with open("./model_output/binary/all_points_samples.txt", "a") as oo:
-            for i in range(len(scores_sample)):
+            for i in range(len(scores_sample_raw)):
                 oo.write(
-                    f"{scores_sample[i]:.16g} "
+                    f"{scores_sample_raw[i]:.16g} "
                     f"{E_norm_reads[i]:.16g} "
                     f"{cbf_reads[i]:.16g} "
                     f"{E[i]:.16g} "
