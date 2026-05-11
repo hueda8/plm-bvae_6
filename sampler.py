@@ -75,8 +75,7 @@ def _safe_get_chain_strength_from_info(res):
             return val
     return None
 
-
-def append_qpu_log_csv(csv_path, iter_idx, res, sampler, bqm, requested_chain_strength=None):
+def compute_energy_metrics(res, bqm):
     offset = float(getattr(bqm, "offset", 0.0))
     max_abs_h = float(max((abs(v) for v in bqm.linear.values()), default=0.0))
     max_abs_J = float(max((abs(v) for v in bqm.quadratic.values()), default=0.0))
@@ -84,25 +83,42 @@ def append_qpu_log_csv(csv_path, iter_idx, res, sampler, bqm, requested_chain_st
     num_vars = int(len(bqm.variables))
     denom = num_vars * scale
 
-    E = res.record.energy.astype(float)
+    E = res.record.energy.astype(float) # hamiltonian_reads
     cbf_reads = res.record["chain_break_fraction"].astype(float)
+
+    E0 = E - offset
+    E_norm_reads = np.full_like(E0, np.nan, dtype=float) if denom == 0.0 else (E0 / denom)
 
     best_i = int(np.argmin(E))
     best_energy = float(E[best_i])
     cbf_best = float(cbf_reads[best_i])
+    E_best_norm = float(E_norm_reads[best_i]) if len(E_norm_reads) > 0 else float("nan")
 
-    E0 = best_energy - offset
-    E_norm = float("nan") if denom == 0.0 else (E0 / denom)
+    return {
+        "offset": offset,
+        "max_abs_h": max_abs_h,
+        "max_abs_J": max_abs_J,
+        "E": E,
+        "cbf_reads": cbf_reads,
+        "E_norm_reads": E_norm_reads,
+        "best_i": best_i,
+        "best_energy": best_energy,
+        "cbf_best": cbf_best,
+        "E_best_norm": E_best_norm,
+    }
 
-    cbf_mean = float(cbf_reads.mean())
-    cbf_max = float(cbf_reads.max())
 
+def append_qpu_log_csv(csv_path, iter_idx, res, sampler, bqm, requested_chain_strength=None):
+    m = compute_energy_metrics(res, bqm)
+    
+    cbf_mean = float(m["cbf_reads"].mean())
+    cbf_max = float(m["cbf_reads"].max())
     max_chain_length = _max_chain_length_from_anywhere(res, sampler)
 
     used_chain_strength = requested_chain_strength
     if used_chain_strength is None:
         used_chain_strength = _safe_get_chain_strength_from_info(res)
-
+        
     need_header = not os.path.exists(csv_path)
     with open(csv_path, "a") as f:
         if need_header:
@@ -110,8 +126,9 @@ def append_qpu_log_csv(csv_path, iter_idx, res, sampler, bqm, requested_chain_st
                 "iter,best_energy,E_norm,offset,max_abs_h,max_abs_J,cbf_mean,cbf_max,cbf_best,max_chain_length,chain_strength\n"
             )
         f.write(
-            f"{iter_idx},{best_energy:.16g},{E_norm:.16g},{offset:.16g},{max_abs_h:.16g},{max_abs_J:.16g},"
-            f"{cbf_mean:.16g},{cbf_max:.16g},{cbf_best:.16g},{max_chain_length},"
+            f"{iter_idx},{m['best_energy']:.16g},{m['E_best_norm']:.16g},"
+            f"{m['offset']:.16g},{m['max_abs_h']:.16g},{m['max_abs_J']:.16g},"
+            f"{cbf_mean:.16g},{cbf_max:.16g},{m['cbf_best']:.16g},{max_chain_length},"
             f"{'' if used_chain_strength is None else used_chain_strength}\n"
         )
 
@@ -318,33 +335,20 @@ def main():
         scores_sample = objective_function(seq_d)
         scores_all = np.r_[scores_all, scores_sample].astype(np.float32)
 
-        # energy diagnostics for best read
-        offset = float(getattr(bqm, "offset", 0.0))
-        max_abs_h = float(max((abs(v) for v in bqm.linear.values()), default=0.0))
-        max_abs_J = float(max((abs(v) for v in bqm.quadratic.values()), default=0.0))
-        scale = max(max_abs_h, max_abs_J)
-        num_vars = int(len(bqm.variables))
-        denom = num_vars * scale
+        # energy diagnostics (shared)
+        metrics = compute_energy_metrics(res, bqm)
 
-        E = res.record.energy.astype(float) # hamiltonian_reads
+        E = metrics["E"]  # hamiltonian_reads
+        cbf_reads = metrics["cbf_reads"]
+        E_norm_reads = metrics["E_norm_reads"]
+        E_best_norm = metrics["E_best_norm"]
+        cbf_best = metrics["cbf_best"]
+
         fm_preds_sample = fmbqm.predict(vectors_sample).astype(np.float32) # FM_pred
-        cbf_reads = res.record["chain_break_fraction"].astype(float)
-        
-
-        best_i = int(np.argmin(E))
-        best_energy = float(E[best_i])
-        cbf_best = float(cbf_reads[best_i])
-
-        E0_best = best_energy - offset
-        E_best_norm = float("nan") if denom == 0.0 else (E0_best / denom)
 
         # best-so-far (minimize objective)
         with open("./model_output/binary/all_points_best.txt", "a") as oo:
             oo.write(f"{iter_idx+1} {np.min(scores_all):.16g} {E_best_norm:.16g} {cbf_best:.16g}\n")
-
-        # per-sample logs: objective, normalized-energy, cbf
-        E0 = E - offset
-        E_norm_reads = np.full_like(E0, np.nan, dtype=float) if denom == 0.0 else (E0 / denom)
 
         with open("./model_output/binary/all_points_samples.txt", "a") as oo:
             for i in range(len(scores_sample)):
