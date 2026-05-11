@@ -16,12 +16,15 @@ FM_RANK = 8
 FM_LR = 0.01
 FM_EPOCHS = 1000
 FM_PATIENCE = 50
+FM_VAL_RATIO = 0.2
+FM_BATCH_SIZE = 64
 
-CHAIN_STRENGTH = 1
+
+#CHAIN_STRENGTH = 1
 ANNEALING_TIME = 20
-NUM_READS = 25
+NUM_READS = 10
 MAX_RETRIES = 20
-N_ITER = 400
+N_ITER = 200
 
 DWAVE_ENDPOINT = "https://cloud.dwavesys.com/sapi"
 DWAVE_SOLVER = "Advantage_system4.1"
@@ -223,7 +226,9 @@ def main():
         lr=FM_LR,
         epochs=FM_EPOCHS,
         patience=FM_PATIENCE,
-        auto_scale=True,
+        val_ratio=FM_VAL_RATIO,
+        batch_size=FM_BATCH_SIZE,
+        split_seed=42,
     )
     bqm = fmbqm.to_bqm()
 
@@ -347,6 +352,9 @@ def main():
             lr=FM_LR,
             epochs=FM_EPOCHS,
             patience=FM_PATIENCE,
+            val_ratio=FM_VAL_RATIO,
+            batch_size=FM_BATCH_SIZE,
+            split_seed=42 + iter_idx, # 反復ごとに再現可能な変化をつける
         )
         bqm = fmbqm.to_bqm()
 
