@@ -107,7 +107,8 @@ def train_fm(
     patience: int | None = 50,
     val_ratio: float = 0.2,
     batch_size: int | None = 64,
-    split_seed: int | None = None,
+    split_seed: int | None = 42,
+    log_path: str | None = None,
 ) -> None:
     X = torch.from_numpy(x_np).float()
     Y = torch.from_numpy(y_np).float()
@@ -148,6 +149,13 @@ def train_fm(
     best_state = copy.deepcopy(model.state_dict())
     best_metric = float("inf")
     stall = 0
+
+    # log
+    if log_path is not None:
+        need_header = not os.path.exists(log_path)
+        with open(log_path, "a") as f:
+            if need_header:
+                f.write("epoch,train_loss,val_loss,metric,best_metric,stall\n")
 
     for _ in range(epochs):
         # ---- train phase ----
@@ -194,7 +202,15 @@ def train_fm(
             stall += 1
             if patience is not None and stall >= patience:
                 break
-
+        
+        val_loss = metric if X_val is not None else float("nan")
+        if log_path is not None:
+            with open(log_path, "a") as f:
+                f.write(
+                    f"{epoch_idx+1},{train_loss:.16g},{val_loss:.16g},"
+                    f"{metric:.16g},{best_metric:.16g},{stall}\n"
+                )
+    
     model.load_state_dict(best_state)
 
 
@@ -312,7 +328,7 @@ class TorchFMBQM:
         deterministic: bool = False,
         val_ratio: float = 0.2,
         batch_size: int | None = 64,
-        split_seed: int | None = None,
+        split_seed: int | None = 42,
     ) -> "TorchFMBQM":
         x = np.asarray(x, dtype=np.float32)
         y = np.asarray(y, dtype=np.float32)
@@ -367,7 +383,7 @@ class TorchFMBQM:
         patience: int | None = None,
         val_ratio: float = 0.2,
         batch_size: int | None = 64,
-        split_seed: int | None = None,
+        split_seed: int | None = 42,
     ) -> None:
         x = np.asarray(x, dtype=np.float32)
         y = np.asarray(y, dtype=np.float32)
