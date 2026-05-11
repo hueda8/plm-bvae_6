@@ -329,6 +329,7 @@ class TorchFMBQM:
         val_ratio: float = 0.2,
         batch_size: int | None = 64,
         split_seed: int | None = 42,
+        log_path: str | None = None,
     ) -> "TorchFMBQM":
         x = np.asarray(x, dtype=np.float32)
         y = np.asarray(y, dtype=np.float32)
@@ -371,6 +372,7 @@ class TorchFMBQM:
             val_ratio=val_ratio,
             batch_size=batch_size,
             split_seed=split_seed,
+            log_path=log_path,
         )
         return obj
 
@@ -384,6 +386,7 @@ class TorchFMBQM:
         val_ratio: float = 0.2,
         batch_size: int | None = 64,
         split_seed: int | None = 42,
+        log_path: str | None = None,
     ) -> None:
         x = np.asarray(x, dtype=np.float32)
         y = np.asarray(y, dtype=np.float32)
