@@ -197,8 +197,8 @@ def main():
     os.makedirs("./model_output/binary/fm_log", exist_ok=True)
     # Decode initial binary vector set
     os.system(
-        'CUDA_VISIBLE_DEVICES="" python decode_file.py --hparams_path experiment_configs/binary.json '
-        "--checkpoint_kind last "
+        'CUDA_VISIBLE_DEVICES="" python decode_file.py --hparams_path experiment_configs/binary.yml'
+        "--checkpoint_kind best"
         "--decode_strategy greedy"
     )
 
@@ -303,11 +303,9 @@ def main():
         # decode sampled vectors
         with open("./model_output/binary/decoded.txt", "w"):
             os.system(
-                'CUDA_VISIBLE_DEVICES="" python decode_file.py --hparams_path experiment_configs/binary.json '
-                "--checkpoint_kind last "
-                "--decode_strategy top_p "
-                "--top_p 0.95 "
-                "--temperature 1.8"
+                'CUDA_VISIBLE_DEVICES="" python decode_file.py --hparams_path experiment_configs/binary.yml'
+                "--checkpoint_kind best"
+                "--decode_strategy greedy"
             )
 
         with open("./model_output/binary/decoded_list.txt", "a") as f_out:
@@ -328,8 +326,10 @@ def main():
         num_vars = int(len(bqm.variables))
         denom = num_vars * scale
 
-        E = res.record.energy.astype(float)
+        E = res.record.energy.astype(float) # hamiltonian_reads
+        fm_preds_sample = fmbqm.predict(vectors_sample).astype(np.float32) # FM_pred
         cbf_reads = res.record["chain_break_fraction"].astype(float)
+        
 
         best_i = int(np.argmin(E))
         best_energy = float(E[best_i])
@@ -348,7 +348,13 @@ def main():
 
         with open("./model_output/binary/all_points_samples.txt", "a") as oo:
             for i in range(len(scores_sample)):
-                oo.write(f"{scores_sample[i]:.16g} {E_norm_reads[i]:.16g} {cbf_reads[i]:.16g}\n")
+                oo.write(
+                    f"{scores_sample[i]:.16g} "
+                    f"{E_norm_reads[i]:.16g} "
+                    f"{cbf_reads[i]:.16g} "
+                    f"{E[i]:.16g} "
+                    f"{float(fm_preds_sample[i]):.16g}\n"
+                )
 
         # FM re-training (requested style)
         iter_log_path = f"./model_output/binary/fm_log/fm_train_log_iter_{iter_idx+1:04d}.csv"
