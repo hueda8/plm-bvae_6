@@ -10,7 +10,7 @@ import dimod
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import TensorDataset, DataLoader, random_split
+from torch.utils.data import TensorDataset, DataLoader
 
 def set_global_seed(seed: int, deterministic: bool = False) -> None:
     random.seed(seed)
