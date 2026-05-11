@@ -366,3 +366,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    os.makedirs("./model_output/binary/fm_log", exist_ok=True)
