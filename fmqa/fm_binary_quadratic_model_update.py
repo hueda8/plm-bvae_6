@@ -125,8 +125,6 @@ def train_fm(
     else:
         n_val = max(1, int(n * val_ratio))
         n_val = min(n_val, n - 1)  # ensure train >= 1
-        n_train = n - n_val
-        full_ds = TensorDataset(X, Y)
 
         gen = None
         if split_seed is not None:
