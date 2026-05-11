@@ -189,7 +189,7 @@ def seq_fix():
     return seq_d
 
 
-def objective_function(seq_list):
+def black_box_function(seq_list):
     vals = []
     for s in seq_list:
         s = (s or "").strip()
@@ -231,7 +231,7 @@ def main():
 
     # Initial sequence eval (single objective)
     seq_d_all = seq_fix()
-    scores = objective_function(seq_d_all)  # for from_data()
+    scores = black_box_function(seq_d_all)  # for from_data()
 
     # log initial best (minimize)
     with open("./model_output/binary/all_points_best.txt", "w") as oo:
@@ -332,7 +332,7 @@ def main():
         seq_d = seq_fix()
 
         # evaluate sampled sequences (single objective)
-        scores_sample = objective_function(seq_d)
+        scores_sample = black_box_function(seq_d)
         scores_all = np.r_[scores_all, scores_sample].astype(np.float32)
 
         # energy diagnostics (shared)
