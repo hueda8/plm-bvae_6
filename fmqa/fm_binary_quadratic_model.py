@@ -146,7 +146,14 @@ def train_fm(
         train_loader = DataLoader(train_ds, batch_size=eff_bs, shuffle=True)
     
     best_state = copy.deepcopy(model.state_dict())
-    best_metric = float("inf")
+    if X_val is not None:
+        model.eval()
+        with torch.no_grad():
+            initial_pred = model(X_val)
+            best_metric = float(loss_fn(initial_pred, Y_val).item())
+    else:
+        best_metric = float("inf")
+    
     stall = 0
 
     # log
