@@ -111,7 +111,7 @@ def train_fm(
     split_seed: int | None = 42,
     log_path: str | None = None,
     global_best_metric_in: float | None = None,
-) -> None:
+) -> float:
     X = torch.from_numpy(x_np).float()
     Y = torch.from_numpy(y_np).float()
 
