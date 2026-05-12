@@ -17,6 +17,7 @@ OPTIMIZE_DIRECTION = "min"  # "min" or "max"
 # FMQA
 FM_RANK = 8
 FM_LR = 0.01
+FM_WEIGHT_DECAY = 0.01
 FM_EPOCHS = 1000
 FM_PATIENCE = 50
 FM_VAL_RATIO = 0.2
@@ -307,6 +308,7 @@ def main():
         y_train_std,
         k=FM_RANK,
         lr=FM_LR,
+        weight_decay=FM_WEIGHT_DECAY,
         epochs=FM_EPOCHS,
         patience=FM_PATIENCE,
         val_ratio=FM_VAL_RATIO,
@@ -465,6 +467,7 @@ def main():
                 x_train_all,
                 y_train_all_std,
                 lr=FM_LR,
+                weight_decay=FM_WEIGHT_DECAY,
                 epochs=FM_EPOCHS,
                 patience=FM_PATIENCE,
                 val_ratio=FM_VAL_RATIO,
