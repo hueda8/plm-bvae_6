@@ -238,6 +238,14 @@ def filter_valid_for_fm(x: np.ndarray, y_raw: np.ndarray, penalty_score: float):
     mask = np.isfinite(y_raw) & (y_raw < penalty_score)
     return x[mask], y_raw[mask], mask
 
+def standardize_targets(y: np.ndarray) -> tuple[np.ndarray, float, float]:
+    y = np.asarray(y, dtype=np.float32)
+    mu = float(np.mean(y))
+    sigma = float(np.std(y))
+    if not np.isfinite(sigma) or sigma < 1e-12:
+        return (y - mu).astype(np.float32), mu, 1.0
+    return ((y - mu) / sigma).astype(np.float32), mu, sigma
+
 # -----------------------------
 # Main
 # -----------------------------
@@ -272,6 +280,10 @@ def main():
     if len(y_train) == 0:
         raise RuntimeError("No valid (non-penalty) samples for initial FM training.")
 
+    # standardize
+    y_train_std, y_mu, y_sigma = standardize_targets(y_train)
+    print(f"[iter 0] y_train standardize: mean={y_mu:.16g}, std={y_sigma:.16g}", flush=True)
+
     # log initial best (minimize)
     init_best_bb = np.min(scores_raw) if OPTIMIZE_DIRECTION == "min" else np.max(scores_raw)
     with open("./model_output/binary/all_points_best.txt", "w") as oo:
@@ -288,7 +300,7 @@ def main():
     # FM training (requested style)
     fmbqm = TorchFMBQM.from_data(
         x_train,
-        y_train,
+        y_train_std,
         k=FM_RANK,
         lr=FM_LR,
         epochs=FM_EPOCHS,
@@ -437,11 +449,15 @@ def main():
         if len(y_train_all) == 0:
             print(f"[iter {iter_idx+1}] skip FM training: no valid non-penalty samples", flush=True)
         else:
+            # stamdardize
+            y_train_all_std, y_all_mu, y_all_sigma = standardize_targets(y_train_all)
+            print(f"[iter {iter_idx+1}] y_train standardize: mean={y_all_mu:.16g}, std={y_all_sigma:.16g}", flush=True)
+
             # FM re-training (requested style)
             iter_log_path = f"./model_output/binary/fm_log/fm_train_log_iter_{iter_idx+1:04d}.csv"
             fmbqm.train(
                 x_train_all,
-                y_train_all,
+                y_train_all_std,
                 lr=FM_LR,
                 epochs=FM_EPOCHS,
                 patience=FM_PATIENCE,
