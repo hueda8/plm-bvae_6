@@ -242,8 +242,8 @@ def black_box_function(seq_list):
 # -----------------------------
 def run_decode_in_py37() -> None:
     cmd = [
-        "conda", "activate", PY37_ENV_NAME,
-        "python3", "decode_file.py", "experiment_configs/binary.json",
+        "conda", "run", "-n", PY37_ENV_NAME,
+        "python", "decode_file.py", "experiment_configs/binary.json",
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
