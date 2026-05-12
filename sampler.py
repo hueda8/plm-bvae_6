@@ -18,10 +18,12 @@ OPTIMIZE_DIRECTION = "min"  # "min" or "max"
 FM_RANK = 8
 FM_LR = 0.01
 FM_WEIGHT_DECAY = 0.01
+FM_AUTO_SCALE = False
 FM_EPOCHS = 1000
 FM_PATIENCE = 50
 FM_VAL_RATIO = 0.2
 FM_BATCH_SIZE = 64
+
 
 
 #CHAIN_STRENGTH = 1
@@ -308,6 +310,7 @@ def main():
         y_train_std,
         k=FM_RANK,
         lr=FM_LR,
+        auto_scale=FM_AUTO_SCALE,
         weight_decay=FM_WEIGHT_DECAY,
         epochs=FM_EPOCHS,
         patience=FM_PATIENCE,
