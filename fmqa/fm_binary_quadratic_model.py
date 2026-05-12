@@ -110,6 +110,7 @@ def train_fm(
     batch_size: int | None = 64,
     split_seed: int | None = 42,
     log_path: str | None = None,
+    global_best_metric_in: float | None = None,
 ) -> None:
     X = torch.from_numpy(x_np).float()
     Y = torch.from_numpy(y_np).float()
@@ -153,6 +154,11 @@ def train_fm(
             best_metric = float(loss_fn(initial_pred, Y_val).item())
     else:
         best_metric = float("inf")
+
+    if global_best_metric_in is None:
+        global_best_metric = best_metric
+    else:
+        global_best_metric = float(min(global_best_metric_in, best_metric))
     
     stall = 0
 
@@ -161,7 +167,7 @@ def train_fm(
         need_header = not os.path.exists(log_path)
         with open(log_path, "a") as f:
             if need_header:
-                f.write("epoch,train_loss,val_loss,metric,best_metric,stall\n")
+                f.write("epoch,train_loss,val_loss,metric,best_metric,global_best_metric,stall\n")
 
     for epoch_idx in range(epochs):
         # ---- train phase ----
@@ -207,17 +213,20 @@ def train_fm(
         else:
             stall += 1
             if patience is not None and stall >= patience:
+                global_best_metric = min(global_best_metric, metric)
                 break
+        global_best_metric = min(global_best_metric, metric)
         
         val_loss = metric if X_val is not None else float("nan")
         if log_path is not None:
             with open(log_path, "a") as f:
                 f.write(
                     f"{epoch_idx+1},{train_loss:.16g},{val_loss:.16g},"
-                    f"{metric:.16g},{best_metric:.16g},{stall}\n"
+                    f"{metric:.16g},{best_metric:.16g},{global_best_metric:.16g},{stall}\n"
                 )
     
     model.load_state_dict(best_state)
+    return float(global_best_metric)
 
 
 # -----------------------------
@@ -316,6 +325,7 @@ class TorchFMBQM:
         self.weight_decay = weight_decay
         self.epochs = epochs
         self.patience = patience
+        self.global_best_metric: float | None = None
 
         sw = 0.1 if scale_w is None else scale_w
         sv = 0.1 if scale_v is None else scale_v
@@ -420,6 +430,7 @@ class TorchFMBQM:
             batch_size=batch_size,
             split_seed=split_seed,
             log_path=log_path,
+            global_best_metric_in=self.global_best_metric, 
         )
 
     def predict(self, x: np.ndarray) -> np.ndarray:
