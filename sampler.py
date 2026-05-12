@@ -246,6 +246,9 @@ def standardize_targets(y: np.ndarray) -> tuple[np.ndarray, float, float]:
         return (y - mu).astype(np.float32), mu, 1.0
     return ((y - mu) / sigma).astype(np.float32), mu, sigma
 
+def destandardize_targets(y_std: np.ndarray, mu: float, sigma: float) -> np.ndarray:
+    return (np.asarray(y_std, dtype=np.float32) * np.float32(sigma) + np.float32(mu)).astype(np.float32)
+
 # -----------------------------
 # Main
 # -----------------------------
@@ -282,6 +285,7 @@ def main():
 
     # standardize
     y_train_std, y_mu, y_sigma = standardize_targets(y_train)
+    current_y_mu, current_y_sigma = y_all_mu, y_all_sigma
     print(f"[iter 0] y_train standardize: mean={y_mu:.16g}, std={y_sigma:.16g}", flush=True)
 
     # log initial best (minimize)
@@ -419,7 +423,8 @@ def main():
         E_best_norm = metrics["E_best_norm"]
         cbf_best = metrics["cbf_best"]
 
-        fm_preds_sample = fmbqm.predict(vectors_sample).astype(np.float32) # FM_pred
+        fm_preds_sample_std = fmbqm.predict(vectors_sample).astype(np.float32) # FM_pred
+        fm_preds_sample = destandardize_targets(fm_preds_sample_std, current_y_mu, current_y_sigma)  # destandardize
 
         # best-so-far (minimize objective)
         with open("./model_output/binary/all_points_best.txt", "a") as oo:
