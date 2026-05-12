@@ -456,6 +456,7 @@ def main():
         else:
             # stamdardize
             y_train_all_std, y_all_mu, y_all_sigma = standardize_targets(y_train_all)
+            current_y_mu, current_y_sigma = y_all_mu, y_all_sigma
             print(f"[iter {iter_idx+1}] y_train standardize: mean={y_all_mu:.16g}, std={y_all_sigma:.16g}", flush=True)
 
             # FM re-training (requested style)
