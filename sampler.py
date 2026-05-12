@@ -264,12 +264,16 @@ def main():
     scores = to_minimization_target(scores_raw, OPTIMIZE_DIRECTION)  # FM学習用ターゲット: max の場合符号反転
 
     # log initial best (minimize)
+    init_best_bb = np.min(scores_raw) if OPTIMIZE_DIRECTION == "min" else np.max(scores_raw)
     with open("./model_output/binary/all_points_best.txt", "w") as oo:
-        if OPTIMIZE_DIRECTION == "min":
-            oo.write(f"{0} {np.min(scores_raw):.16g}\n")
-        else:
-            oo.write(f"{0} {np.max(scores_raw):.16g}\n")
-
+        oo.write(f"{0} {init_best_bb:.16g}\n")
+    # log
+    print(
+        f"[iter 0] best_bb={init_best_bb:.16g} "
+        f"(direction={OPTIMIZE_DIRECTION})",
+        flush=True,
+    )
+    
     # initialize logs/files
     os.system("rm -f ./model_output/binary/fm_log/fm_train_log_iter_*.csv")
     # FM training (requested style)
@@ -400,6 +404,12 @@ def main():
         with open("./model_output/binary/all_points_best.txt", "a") as oo:
             best_bb = np.min(scores_raw_all) if OPTIMIZE_DIRECTION == "min" else np.max(scores_raw_all)
             oo.write(f"{iter_idx+1} {best_bb:.16g} {E_best_norm:.16g} {cbf_best:.16g}\n")
+        # log
+        print(
+            f"[iter {iter_idx+1}] best_bb={best_bb:.16g} "
+            f"E_best_norm={E_best_norm:.16g} cbf_best={cbf_best:.16g}",
+            flush=True,
+        )
 
         with open("./model_output/binary/all_points_samples.txt", "a") as oo:
             for i in range(len(scores_sample_raw)):
