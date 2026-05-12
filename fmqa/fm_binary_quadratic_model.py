@@ -91,11 +91,11 @@ class TorchFM(nn.Module):
         return np_v, np_w, float(np_w0)
 
 
-def build_optimizer(model: TorchFM, base_lr: float) -> torch.optim.Optimizer:
+def build_optimizer(model: TorchFM, base_lr: float, weight_decay: float = 0.01) -> torch.optim.Optimizer:
     return torch.optim.AdamW(
         [{"params": [model.v, model.w, model.w0]}],
         lr=base_lr,
-        weight_decay=0.01,
+        weight_decay=weight_decay,
     )
 
 
@@ -295,6 +295,7 @@ class TorchFMBQM:
         input_size: int,
         k: int = 8,
         lr: float = 1e-2,
+        weight_decay: float = 0.01,
         epochs: int = 1000,
         patience: int | None = 50,
         scale_w: float | None = None,
@@ -312,6 +313,7 @@ class TorchFMBQM:
         self.input_size = input_size
         self.k = k
         self.lr = lr
+        self.weight_decay = weight_decay
         self.epochs = epochs
         self.patience = patience
 
@@ -326,6 +328,7 @@ class TorchFMBQM:
         y: np.ndarray,
         k: int = 8,
         lr: float = 1e-2,
+        weight_decay: float = 0.01,
         epochs: int = 1000,
         patience: int | None = 50,
         auto_scale: bool = False,
@@ -360,6 +363,7 @@ class TorchFMBQM:
             input_size=x.shape[1],
             k=k,
             lr=lr,
+            weight_decay=weight_decay,
             epochs=epochs,
             patience=patience,
             scale_w=scale_w,
@@ -373,6 +377,7 @@ class TorchFMBQM:
             x,
             y,
             lr=lr,
+            weight_decay=weight_decay,
             epochs=epochs,
             patience=patience,
             val_ratio=val_ratio,
@@ -387,10 +392,11 @@ class TorchFMBQM:
         x: np.ndarray,
         y: np.ndarray,
         lr: float | None = None,
+        weight_decay: float | None = None,
         epochs: int | None = None,
         patience: int | None = None,
         val_ratio: float = 0.2,
-        batch_size: int | None = 64,
+        batch_size: int | None = None,
         split_seed: int | None = 42,
         log_path: str | None = None,
     ) -> None:
@@ -398,10 +404,11 @@ class TorchFMBQM:
         y = np.asarray(y, dtype=np.float32)
 
         _lr = self.lr if lr is None else lr
+        _wd = self.weight_decay if weight_decay is None else weight_decay
         _epochs = self.epochs if epochs is None else epochs
         _patience = self.patience if patience is None else patience
 
-        optimizer = build_optimizer(self.model, base_lr=_lr)
+        optimizer = build_optimizer(self.model, base_lr=_lr, weight_decay=_wd)
         train_fm(
             x,
             y,
