@@ -419,7 +419,7 @@ class TorchFMBQM:
         _patience = self.patience if patience is None else patience
 
         optimizer = build_optimizer(self.model, base_lr=_lr, weight_decay=_wd)
-        train_fm(
+        self.global_best_metric = train_fm(
             x,
             y,
             self.model,
