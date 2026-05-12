@@ -439,20 +439,19 @@ def main():
         else:
             # FM re-training (requested style)
             iter_log_path = f"./model_output/binary/fm_log/fm_train_log_iter_{iter_idx+1:04d}.csv"
-        fmbqm.train(
-            x_train_all,
-            y_train_all,
-            lr=FM_LR,
-            epochs=FM_EPOCHS,
-            patience=FM_PATIENCE,
-            val_ratio=FM_VAL_RATIO,
-            batch_size=FM_BATCH_SIZE,
-            split_seed=42 + iter_idx, # 反復ごとに再現可能な変化をつける
-            log_path=iter_log_path,
-        )
-
-        # D-wave
-        bqm = fmbqm.to_bqm()
+            fmbqm.train(
+                x_train_all,
+                y_train_all,
+                lr=FM_LR,
+                epochs=FM_EPOCHS,
+                patience=FM_PATIENCE,
+                val_ratio=FM_VAL_RATIO,
+                batch_size=FM_BATCH_SIZE,
+                split_seed=42 + iter_idx, # 反復ごとに再現可能な変化をつける
+                log_path=iter_log_path,
+            )
+            # D-wave
+            bqm = fmbqm.to_bqm()
 
 
 if __name__ == "__main__":
