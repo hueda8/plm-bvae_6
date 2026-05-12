@@ -285,7 +285,7 @@ def main():
 
     # standardize
     y_train_std, y_mu, y_sigma = standardize_targets(y_train)
-    current_y_mu, current_y_sigma = y_all_mu, y_all_sigma
+    current_y_mu, current_y_sigma = y_mu, y_sigma
     print(f"[iter 0] y_train standardize: mean={y_mu:.16g}, std={y_sigma:.16g}", flush=True)
 
     # log initial best (minimize)
