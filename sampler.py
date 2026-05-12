@@ -234,6 +234,9 @@ def black_box_function(seq_list):
             vals.append(PENALTY_SCORE)
     return np.asarray(vals, dtype=np.float32)
 
+def filter_valid_for_fm(x: np.ndarray, y_raw: np.ndarray, penalty_score: float):
+    mask = np.isfinite(y_raw) & (y_raw < penalty_score)
+    return x[mask], y_raw[mask], mask
 
 # -----------------------------
 # Main
@@ -263,6 +266,12 @@ def main():
     scores_raw = black_box_function(seq_d_all) # for reporting
     scores = to_minimization_target(scores_raw, OPTIMIZE_DIRECTION)  # FM学習用ターゲット: max の場合符号反転
 
+    # FM学習用: penaltyを除外
+    x_train, y_raw_train, _ = filter_valid_for_fm(vectors_all, scores_raw, PENALTY_SCORE)
+    y_train = to_minimization_target(y_raw_train, OPTIMIZE_DIRECTION)
+    if len(y_train) == 0:
+        raise RuntimeError("No valid (non-penalty) samples for initial FM training.")
+
     # log initial best (minimize)
     init_best_bb = np.min(scores_raw) if OPTIMIZE_DIRECTION == "min" else np.max(scores_raw)
     with open("./model_output/binary/all_points_best.txt", "w") as oo:
@@ -278,8 +287,8 @@ def main():
     os.system("rm -f ./model_output/binary/fm_log/fm_train_log_iter_*.csv")
     # FM training (requested style)
     fmbqm = TorchFMBQM.from_data(
-        vectors_all,
-        scores,
+        x_train,
+        y_train,
         k=FM_RANK,
         lr=FM_LR,
         epochs=FM_EPOCHS,
@@ -421,11 +430,18 @@ def main():
                     f"{float(fm_preds_sample[i]):.16g}\n"
                 )
 
-        # FM re-training (requested style)
-        iter_log_path = f"./model_output/binary/fm_log/fm_train_log_iter_{iter_idx+1:04d}.csv"
+        # FM再学習用: 累積データから penalty を除外
+        x_train_all, y_raw_train_all, _ = filter_valid_for_fm(vectors_all, scores_raw_all, PENALTY_SCORE)
+        y_train_all = to_minimization_target(y_raw_train_all, OPTIMIZE_DIRECTION)
+
+        if len(y_train_all) == 0:
+            print(f"[iter {iter_idx+1}] skip FM training: no valid non-penalty samples", flush=True)
+        else:
+            # FM re-training (requested style)
+            iter_log_path = f"./model_output/binary/fm_log/fm_train_log_iter_{iter_idx+1:04d}.csv"
         fmbqm.train(
-            vectors_all,
-            scores_all,
+            x_train_all,
+            y_train_all,
             lr=FM_LR,
             epochs=FM_EPOCHS,
             patience=FM_PATIENCE,
