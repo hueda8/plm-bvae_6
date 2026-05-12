@@ -278,8 +278,7 @@ def main():
     # log initial best (minimize)
     init_best_bb = np.min(scores_raw) if OPTIMIZE_DIRECTION == "min" else np.max(scores_raw)
     with open("./model_output/binary/all_points_best.txt", "w") as oo:
-        if OPTIMIZE_DIRECTION == "min":
-            oo.write(f"{0} {init_best_bb:.16g}\n")
+        oo.write(f"{0} {init_best_bb:.16g}\n")
 
     print(
         f"[iter 0] best_bb={init_best_bb:.16g} "
