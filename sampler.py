@@ -41,7 +41,7 @@ MAX_SAME_AA_RUN = 5
 # Predictor (single objective)
 # -----------------------------
 my_predictor_1 = ppp.Predictor(
-    "./parrot_models/final_network.pt",
+    "./parrot_models/model_network.pt",
     dtype="sequence",
 )
 
