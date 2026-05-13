@@ -28,9 +28,9 @@ FM_BATCH_SIZE = 64
 
 #CHAIN_STRENGTH = 1
 ANNEALING_TIME = 20
-NUM_READS = 10
+NUM_READS = 50
 MAX_RETRIES = 20
-N_ITER = 200
+N_ITER = 40
 
 DWAVE_ENDPOINT = "https://cloud.dwavesys.com/sapi"
 DWAVE_SOLVER = "Advantage_system4.1"
