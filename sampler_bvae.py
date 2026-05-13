@@ -16,7 +16,7 @@ from fmqa import TorchFMBQM
 OPTIMIZE_DIRECTION = "min"  # "min" or "max"
 
 # FMQA
-FM_RANK = 8
+FM_RANK = 16
 FM_LR = 0.01
 FM_WEIGHT_DECAY = 0.01
 FM_EPOCHS = 1000
