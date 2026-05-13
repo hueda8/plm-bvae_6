@@ -38,7 +38,7 @@ DWAVE_TOKEN = "XXXX"  # set your token
 
 # penalty for invalid/failed prediction (minimization)
 PENALTY_SCORE = 1.0e6
-MAX_SAME_AA_RUN = 5
+MAX_SAME_AA_RUN = 9
 
 # -----------------------------
 # Predictor (single objective)
