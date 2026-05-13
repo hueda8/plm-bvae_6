@@ -445,6 +445,7 @@ def main():
         with open("./model_output/binary/all_points_samples.txt", "a") as oo:
             for i in range(len(scores_sample_raw)):
                 oo.write(
+                    f"{iter_idx+1} "
                     f"{scores_sample_raw[i]:.16g} "
                     f"{E_norm_reads[i]:.16g} "
                     f"{cbf_reads[i]:.16g} "
