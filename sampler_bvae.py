@@ -22,15 +22,15 @@ FM_WEIGHT_DECAY = 0.01
 FM_EPOCHS = 1000
 FM_PATIENCE = 50
 FM_AUTO_SCALE = False
-FM_VAL_RATIO = 0.2
+FM_VAL_RATIO = 0
 FM_BATCH_SIZE = 64
 
 
 #CHAIN_STRENGTH = 1
 ANNEALING_TIME = 20
-NUM_READS = 50
+NUM_READS = 10
 MAX_RETRIES = 20
-N_ITER = 40
+N_ITER = 200
 
 DWAVE_ENDPOINT = "https://cloud.dwavesys.com/sapi"
 DWAVE_SOLVER = "Advantage_system4.1"
@@ -240,8 +240,20 @@ def black_box_function(seq_list):
     return np.asarray(vals, dtype=np.float32)
 
 def filter_valid_for_fm(x: np.ndarray, y_raw: np.ndarray, penalty_score: float):
-    mask = np.isfinite(y_raw) & (y_raw < penalty_score)
+    y_raw = np.asarray(y_raw, dtype=np.float32)
+    mask = np.isfinite(y_raw) & (y_raw != penalty_score)
     return x[mask], y_raw[mask], mask
+
+def best_valid_score(y_raw: np.ndarray, direction: str, penalty_score: float) -> float:
+    y_raw = np.asarray(y_raw, dtype=np.float32)
+    valid = y_raw[np.isfinite(y_raw) & (y_raw != penalty_score)]
+    if valid.size == 0:
+        return float("nan")
+    if direction == "min":
+        return float(np.min(valid))
+    if direction == "max":
+        return float(np.max(valid))
+    raise ValueError("direction must be 'min' or 'max'")
 
 def standardize_targets(y: np.ndarray) -> tuple[np.ndarray, float, float]:
     y = np.asarray(y, dtype=np.float32)
@@ -301,10 +313,14 @@ def main():
     # standardize
     y_train_std, y_mu, y_sigma = standardize_targets(y_train)
     current_y_mu, current_y_sigma = y_mu, y_sigma
-    print(f"[iter 0] y_train standardize: mean={y_mu:.16g}, std={y_sigma:.16g}", flush=True)
+    y_mu_min_target = float(y_mu if OPTIMIZE_DIRECTION == "min" else -y_mu)
+    print(f"[iter 0] y_train standardize: mean_raw={y_mu:.16g}, "
+          f"mean_min_target={y_mu_min_target:.16g}, std={y_sigma:.16g}",
+          flush=True,
+         )
 
     # log initial best (minimize)
-    init_best_bb = np.min(scores_raw) if OPTIMIZE_DIRECTION == "min" else np.max(scores_raw)
+    init_best_bb = best_valid_score(scores_raw, OPTIMIZE_DIRECTION, PENALTY_SCORE)
     with open("./model_output/binary/all_points_best.txt", "w") as oo:
         oo.write(f"{0} {init_best_bb:.16g}\n")
 
@@ -441,7 +457,7 @@ def main():
 
         # best-so-far (minimize objective)
         with open("./model_output/binary/all_points_best.txt", "a") as oo:
-            best_bb = np.min(scores_raw_all) if OPTIMIZE_DIRECTION == "min" else np.max(scores_raw_all)
+            best_bb = best_valid_score(scores_raw_all, OPTIMIZE_DIRECTION, PENALTY_SCORE)
             oo.write(f"{iter_idx+1} {best_bb:.16g} {E_best_norm:.16g} {cbf_best:.16g}\n")
 
         print(
@@ -470,7 +486,11 @@ def main():
             # standardize
             y_train_all_std, y_all_mu, y_all_sigma = standardize_targets(y_train_all)
             current_y_mu, current_y_sigma = y_all_mu, y_all_sigma
-            print(f"[iter {iter_idx+1}] y_train standardize: mean={y_all_mu:.16g}, std={y_all_sigma:.16g}", flush=True)
+            y_all_mu_min_target = float(y_all_mu if OPTIMIZE_DIRECTION == "min" else -y_all_mu)
+            print(f"[iter {iter_idx+1}] y_train standardize: mean_raw={y_all_mu:.16g}, "
+                  f"mean_min_target={y_all_mu_min_target:.16g}, std={y_all_sigma:.16g}",
+                  flush=True,
+                 )
             # FM re-training (requested style)
             iter_log_path = f"./model_output/binary/fm_log/fm_train_log_iter_{iter_idx+1:04d}.csv"
             fmbqm.train(
