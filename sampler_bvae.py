@@ -313,11 +313,7 @@ def main():
     # standardize
     y_train_std, y_mu, y_sigma = standardize_targets(y_train)
     current_y_mu, current_y_sigma = y_mu, y_sigma
-    y_mu_min_target = float(y_mu if OPTIMIZE_DIRECTION == "min" else -y_mu)
-    print(f"[iter 0] y_train standardize: mean_raw={y_mu:.16g}, "
-          f"mean_min_target={y_mu_min_target:.16g}, std={y_sigma:.16g}",
-          flush=True,
-         )
+    print(f"[iter 0] y_train standardize: mean={y_mu:.16g}, std={y_sigma:.16g}", flush=True)
 
     # log initial best (minimize)
     init_best_bb = best_valid_score(scores_raw, OPTIMIZE_DIRECTION, PENALTY_SCORE)
@@ -486,11 +482,8 @@ def main():
             # standardize
             y_train_all_std, y_all_mu, y_all_sigma = standardize_targets(y_train_all)
             current_y_mu, current_y_sigma = y_all_mu, y_all_sigma
-            y_all_mu_min_target = float(y_all_mu if OPTIMIZE_DIRECTION == "min" else -y_all_mu)
-            print(f"[iter {iter_idx+1}] y_train standardize: mean_raw={y_all_mu:.16g}, "
-                  f"mean_min_target={y_all_mu_min_target:.16g}, std={y_all_sigma:.16g}",
-                  flush=True,
-                 )
+            print(f"[iter {iter_idx+1}] y_train standardize: mean={y_all_mu:.16g}, std={y_all_sigma:.16g}", flush=True)
+            
             # FM re-training (requested style)
             iter_log_path = f"./model_output/binary/fm_log/fm_train_log_iter_{iter_idx+1:04d}.csv"
             fmbqm.train(
