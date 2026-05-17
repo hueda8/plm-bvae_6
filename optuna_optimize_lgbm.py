@@ -12,7 +12,7 @@ from sklearn.model_selection import KFold
 
 AA_ORDER = "ACDEFGHIKLMNPQRSTVWY"
 
-# z-scale like 5D descriptor (compact physicochemical representation)
+# z-scale like 3D descriptor (compact physicochemical representation)
 AA_ZSCALE = {
     "A": [0.24, -2.32, 0.60],
     "C": [0.84, -1.67, 3.71],
