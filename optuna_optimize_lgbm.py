@@ -11,6 +11,7 @@ from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import KFold
 
 AA_ORDER = "ACDEFGHIKLMNPQRSTVWY"
+ALLOWED_AA_SET = set(AA_ORDER)
 
 # z-scale like 3D descriptor (compact physicochemical representation)
 AA_ZSCALE = {
@@ -70,49 +71,75 @@ def build_sequence_features(seq_series: pd.Series, descriptor: str, max_len: int
     columns = [f"{col_prefix}_{i}" for i in range(arr.shape[1])]
     return pd.DataFrame(arr, columns=columns, index=seq_series.index)
 
+def _preview_indices(indexes, k: int = 5) -> str:
+    idx = list(indexes)
+    if len(idx) <= k:
+        return str(idx)
+    return f"{idx[:k]} ... (total={len(idx)})"
+
+def _validate_sequence_series(seqs: pd.Series) -> None:
+    missing_mask = seqs.isna()
+    if missing_mask.any():
+        raise ValueError(
+            "Sequence column contains missing values at rows: "
+            f"{_preview_indices(seqs.index[missing_mask])}"
+        )
+    seqs = seqs.astype(str)
+    empty_mask = seqs.str.len() == 0
+    if empty_mask.any():
+        raise ValueError(
+            "Sequence column contains empty strings at rows: "
+            f"{_preview_indices(seqs.index[empty_mask])}"
+        )
+    for row_idx, s in seqs.items():
+        bad_chars = sorted(set(ch for ch in s if ch not in ALLOWED_AA_SET))
+        if bad_chars:
+            raise ValueError(
+                "Sequence contains invalid amino-acid characters "
+                f"at row {row_idx}: '{''.join(bad_chars)}'. Allowed: {AA_ORDER}"
+            )
 
 def load_train_dev(path: str, aa_descriptor: str, max_seq_len: int = 0) -> Tuple[pd.DataFrame, pd.Series]:
     """
-    Rule for first column:
-    - numeric: drop it
-    - amino acid sequence (string): keep and convert by descriptor
-
-    Target is always the last column.
+    Strict input format:
+    - exactly 2 columns: [sequence, target]
+    - sequence: non-empty string with allowed AA chars only
+    - target: numeric
     """
-    df = pd.read_csv(path, sep=r"\s+", header=None)
-    if df.shape[1] < 2:
-        raise ValueError("Input data must have at least 2 columns.")
+    if max_seq_len < 0:
+        raise ValueError(f"max_seq_len must be >= 0, got {max_seq_len}")
 
-    y = pd.to_numeric(df.iloc[:, -1], errors="coerce")
-    if y.isna().any():
-        raise ValueError("Last column must be numeric target.")
+    try:
+        df = pd.read_csv(path, sep=r"\s+", header=None)
+    except Exception as e:
+        raise ValueError(f"Failed to read dataset: {path}. Original error: {e}") from e
+    if df.shape[0] == 0:
+        raise ValueError(f"Input data is empty: {path}")
 
-    X_raw = df.iloc[:, :-1].copy()
-    first_col = X_raw.iloc[:, 0]
+    n_cols = df.shape[1]
+    if n_cols != 2:
+        raise ValueError(
+            "Invalid column count: expected exactly 2 columns [sequence, target], "
+            f"but got {n_cols}."
+        )
 
-    if _is_numeric_series(first_col):
-        X_raw = X_raw.iloc[:, 1:].copy()
-    else:
-        seqs = first_col.astype(str)
-        seq_len = int(seqs.map(len).max())
-        if max_seq_len > 0:
-            seq_len = min(seq_len, max_seq_len)
-        seq_feat = build_sequence_features(seqs, aa_descriptor, seq_len)
+    seqs = df.iloc[:, 0]
+    _validate_sequence_series(seqs)
+    seqs = seqs.astype(str)
 
-        other = X_raw.iloc[:, 1:].copy()
-        if other.shape[1] > 0:
-            for c in other.columns:
-                if other[c].dtype == object:
-                    other[c] = pd.to_numeric(other[c], errors="coerce")
-            other = other.fillna(0.0)
-            X_raw = pd.concat([seq_feat, other.reset_index(drop=True)], axis=1)
-        else:
-            X_raw = seq_feat
+    y = pd.to_numeric(df.iloc[:, 1], errors="coerce")
+    bad_y = y.isna()
+    if bad_y.any():
+        raise ValueError(
+            "Target column must be numeric. Non-numeric values found at rows: "
+            f"{_preview_indices(df.index[bad_y])}"
+        )
 
-    X = X_raw.copy()
-    for col in X.columns:
-        if X[col].dtype == object:
-            X[col] = X[col].astype("category")
+    seq_len = int(seqs.str.len().max())
+    if max_seq_len > 0:
+        seq_len = min(seq_len, max_seq_len)
+
+    X = build_sequence_features(seqs, aa_descriptor, seq_len)
 
     return X, y.astype(float)
 
