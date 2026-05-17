@@ -174,14 +174,13 @@ def main() -> None:
     parser.add_argument(
         "--dataset_path",
         type=str,
-        default="C:/Users/hueda8/Desktop/Code/VScode_Data/plm-bvae/data/parrot/peptide/peptide_train_dev.txt",
         help="Path to dataset txt file.",
     )
     parser.add_argument(
         "--aa_descriptor",
         type=str,
         default="zscale",
-        choices=["zscale", "onehot"],
+        choices=["aa_descriptor", "onehot"],
         help="Amino-acid descriptor for sequence column.",
     )
     parser.add_argument(
@@ -191,12 +190,12 @@ def main() -> None:
         help="Max sequence length to encode (0: use dataset max).",
     )
     parser.add_argument(
-        "--study_name", type=str, default="peptide_lgb_rmse", help="Optuna study name."
+        "--study_name", type=str, default="lgb_rmse", help="Optuna study name."
     )
     parser.add_argument(
         "--storage",
         type=str,
-        default="sqlite:///optuna_peptide_lgb.db",
+        default="sqlite:///optuna_lgb.db",
         help="Optuna storage URL.",
     )
     parser.add_argument("--n_trials", type=int, default=100, help="Number of Optuna trials.")
