@@ -178,12 +178,6 @@ def main() -> None:
         help="Path to dataset txt file.",
     )
     parser.add_argument(
-        "--train_dev_path",
-        type=str,
-        default=None,
-        help="Deprecated alias of --dataset_path.",
-    )
-    parser.add_argument(
         "--aa_descriptor",
         type=str,
         default="zscale",
@@ -216,7 +210,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    dataset_path = args.dataset_path if args.train_dev_path is None else args.train_dev_path
+    dataset_path = args.dataset_path
     X, y = load_train_dev(dataset_path, args.aa_descriptor, args.max_seq_len)
 
     def objective(trial: optuna.trial.Trial) -> float:
