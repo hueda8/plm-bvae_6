@@ -43,10 +43,18 @@ PENALTY_SCORE = 1.0e6
 MAX_SAME_AA_RUN = 9
 
 # -----------------------------
-# Predictor (single objective)
+# Predictors (single objective)
 # -----------------------------
 my_predictor_1 = ppp.Predictor(
-    "./parrot_models/model_network.pt",
+    "./parrot_models/model_network_1.pt",
+    dtype="sequence",
+)
+my_predictor_2 = ppp.Predictor(
+    "./parrot_models/model_network_2.pt",
+    dtype="sequence",
+)
+my_predictor_3 = ppp.Predictor(
+    "./parrot_models/model_network_3.pt",
     dtype="sequence",
 )
 
@@ -231,7 +239,11 @@ def black_box_function(seq_list):
             continue
         
         try:
-            v = float(my_predictor_1.predict(s)[0])  # full sequence directly
+            v1 = float(my_predictor_1.predict(s)[0])
+            v2 = float(my_predictor_2.predict(s)[0])
+            v3 = float(my_predictor_3.predict(s)[0])
+            v = (v1 + v2 + v3) / 3.0
+            
             if np.isnan(v) or np.isinf(v):
                 v = PENALTY_SCORE
             vals.append(v)
