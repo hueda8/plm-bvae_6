@@ -5,7 +5,6 @@ import time
 from dwave.system.samplers import DWaveSampler
 from dwave.system.composites import EmbeddingComposite
 from parrot import py_predictor as ppp
-from parrot.encode_sequence import UserEncoder
 import subprocess
 
 # TorchFM separated module (as discussed)
@@ -49,20 +48,17 @@ MAX_SAME_AA_RUN = 9
 my_predictor_1 = ppp.Predictor(
     "./parrot_models/model_network_1.pt",
     dtype="sequence",
-    encoding_scheme="user",
-    encoder=UserEncoder("../../zscale3_encoding.txt"),
+    encoding_file="../../zscale3_encoding.txt",
 )
 my_predictor_2 = ppp.Predictor(
     "./parrot_models/model_network_2.pt",
     dtype="sequence",
-    encoding_scheme="user",
-    encoder=UserEncoder("../../zscale3_encoding.txt"),
+    encoding_file="../../zscale3_encoding.txt",
 )
 my_predictor_3 = ppp.Predictor(
     "./parrot_models/model_network_3.pt",
     dtype="sequence",
-    encoding_scheme="user",
-    encoder=UserEncoder("../../zscale3_encoding.txt"),
+    encoding_file="../../zscale3_encoding.txt",
 )
 
 
